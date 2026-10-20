@@ -120,6 +120,7 @@ button{cursor:pointer}
 .tg.click{cursor:pointer}
 .tg.click:hover circle,.tg.click:focus circle{fill:var(--flag)}
 .tg:focus{outline:none}
+.rnum{fill:var(--flag);font-family:var(--f-body);font-weight:800;font-size:11.5px;paint-order:stroke;stroke:var(--turf);stroke-width:3px}
 .tag{fill:var(--chalk);font-family:var(--f-body);font-weight:600;font-size:11px;paint-order:stroke;stroke:var(--turf);stroke-width:3px}
 .bpath{fill:none;stroke:var(--flag);stroke-width:2;stroke-dasharray:4 4}
 .endlab{fill:var(--flag);font-family:var(--f-display);font-weight:800;font-size:24px;paint-order:stroke;stroke:var(--off-ink);stroke-width:4px}
@@ -201,8 +202,12 @@ button{cursor:pointer}
 .fld .help{font-size:12px;color:var(--muted)}
 .bkhead{display:flex;justify-content:space-between;align-items:center;margin:22px 0 8px}
 .bkhead h3{margin:0;font-family:var(--f-display);font-weight:800;font-size:20px;text-transform:uppercase}
-.bk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,130px) minmax(0,100px) 34px;gap:6px;margin-bottom:6px}
-@media (max-width:480px){.bk{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px}.bk input{grid-column:1/-1}}
+.bk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,118px) minmax(0,92px) minmax(0,118px) 34px;gap:6px;margin-bottom:6px}
+.bkhd{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.rin{font-family:var(--f-mono);text-transform:uppercase}
+.tree{font-size:12.5px;color:var(--muted);margin:0 0 10px;max-width:70ch}
+.tree b{color:var(--ink);font-family:var(--f-mono);font-weight:400}
+@media (max-width:560px){.bk{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px}.bk input:first-child{grid-column:1/-1}.bk .rin{grid-column:1/3}.bkhd{display:none}}
 .bk button{border:1px solid var(--line);background:var(--bg);border-radius:6px}
 .imp{display:flex;flex-direction:column;gap:8px}
 .implab{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -215,7 +220,7 @@ button{cursor:pointer}
 .impmsg{margin:0;font-size:13.5px;min-height:1em}
 .impmsg.err{color:var(--g-miss)}
 .prev{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px}
-.prev .bk{margin:0;grid-template-columns:minmax(0,1fr) minmax(0,130px) minmax(0,100px) 34px}
+.prev .bk{margin:0}
 .prev .q{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--g-cost);text-transform:uppercase}
 .prevhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
 .sheetfoot{display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
@@ -380,7 +385,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     <div class="bkhead"><h3>Import a call sheet</h3></div>
     <div class="imp">
       <label for="impText" class="implab">Paste plays, one per line, or a playbook code from another coach</label>
-      <textarea id="impText" rows="6" spellcheck="false" placeholder="Trips Right Smash&#10;Inside Zone, inside, pistol&#10;Boot Left, play action, pro&#10;&#10;or paste a code that starts with CSD1:"></textarea>
+      <textarea id="impText" rows="6" spellcheck="false" placeholder="Trips Right Smash&#10;Inside Zone, inside, pistol&#10;Boot Left, play action, pro, X8 H0 Y1 Z7&#10;&#10;or paste a code that starts with CSD1:"></textarea>
       <p class="help">Each line can be just the play name. The concept and formation are guessed from the name, and you can fix any guess before adding. Spreadsheet columns (name, concept, formation) paste in as-is.</p>
       <div class="improw">
         <button class="btn primary" id="impRead">Read plays</button>
@@ -391,6 +396,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div id="impPrev"></div>
     </div>
     <div class="bkhead"><h3>Call sheet</h3><button class="btn" id="addPlay">Add play</button></div>
+    <p class="tree">Routes use the tree, numbered from the line of scrimmage: <b>0</b> drag 2 · <b>1</b> flat 2 · <b>2</b> slant 4 · <b>3</b> comeback 10 · <b>4</b> curl 10 · <b>5</b> out 10 · <b>6</b> dig 12 · <b>7</b> corner 12 · <b>8</b> post 12 · <b>9</b> go/fade. Two digits make a combo, like <b>87</b> post-corner or <b>19</b> wheel. Write them by position, like <b>X9 H8 Y0 Z5 R1</b>. Leave a box blank to use the concept's default; the grey text shows it.</p>
     <div id="book"></div>
     <div class="bkhead"><h3>Share with your staff</h3></div>
     <div class="imp">
@@ -440,31 +446,98 @@ const FORMS={
  empty:{label:'Empty',run:.8,pass:1.06,sack:1.3,pos:{X:[-20,-.8],H:[-12,-1.5],Y:[8,-1.5],Z:[20,-.8],R:[14,-1.5],Q:[0,-5]}}
 };
 const DEFFORM={inside:'pistol',outside:'doubles',draw:'doubles',sneak:'pro',rpo:'pistol',quick:'doubles',sideline:'doubles',inter:'doubles',deep:'doubles',pa:'pro',screen:'trips',hail:'empty'};
-/* routes: pass routes as [out, up] offsets from the player (out = toward his sideline); runs as absolute [x, up] from the ball */
+/* ---------- route tree: depths in yards from the line of scrimmage ---------- */
+/* v = the branch after the break, as [out, up]; out = toward that receiver's sideline */
+const TREE={
+ 0:{n:'drag',d:2,v:[-16,1],side:'in'},
+ 1:{n:'flat',d:2,v:[8,0],side:'out'},
+ 2:{n:'slant',d:4,v:[-5,5],side:'in'},
+ 3:{n:'comeback',d:10,v:[3,-2],side:'out'},
+ 4:{n:'curl',d:10,v:[-2,-2],side:'in'},
+ 5:{n:'out',d:10,v:[9,0],side:'out'},
+ 6:{n:'dig',d:12,v:[-12,0],side:'in'},
+ 7:{n:'corner',d:12,v:[10,13],side:'out',deep:1},
+ 8:{n:'post',d:12,v:[-8,14],side:'in',deep:1},
+ 9:{n:'go',d:0,v:[1,26],side:'vert',deep:1}
+};
+const COMBO={'87':'post-corner','78':'corner-post','19':'wheel','29':'slant-and-go','59':'out-and-up','39':'comeback-and-go','49':'curl-and-go','69':'dig-and-go','89':'post-go','79':'corner-go'};
+const SLOTS=['X','H','Y','Z','R'];
+function isRoute(c){return typeof c==='string'&&/^\d{1,2}$/.test(c);}
+function routeName(c){if(c==='S')return'block';if(c==='P')return'pass pro';if(COMBO[c])return COMBO[c];return c.split('').map(d=>TREE[d].n).join('-');}
+function treePts(code,slot){
+ if(code==='S')return[[0,1]];
+ if(!isRoute(code))return null;
+ const sh=slot==='R'?-2:0,a=TREE[code[0]];
+ if(slot==='R'&&code==='1')return[[2.5,-3],[9,-1]];
+ if(slot==='R'&&code==='0')return[[0,-1.5],[-6,1]];
+ if(code.length===1){
+  if(code==='9')return[[a.v[0],a.v[1]]];
+  const by=Math.max(sh+1,a.d+sh);
+  return[[0,by],[a.v[0],by+a.v[1]]];
+ }
+ const b=TREE[code[1]];let pts;
+ if(code[0]==='9')pts=[[0,12+sh]];
+ else{const by=Math.max(sh+1,a.d+sh),L=Math.hypot(a.v[0],a.v[1])||1;pts=[[0,by],[a.v[0]/L*3,by+a.v[1]/L*3]];}
+ const l=pts[pts.length-1],bv=code[1]==='9'?[0,22]:b.v;
+ pts.push([l[0]+bv[0],l[1]+bv[1]]);
+ return pts;
+}
+function catchMean(c,slot){return catchDepth(c,null,slot);}
+function catchDepth(c,r,slot){
+ const L=c[c.length-1],t=TREE[L],u=r?r():.5;let d;
+ if(c.length===2)d=t.deep?14+u*8:TREE[c[0]].d+2;
+ else if(L==='9')d=10+u*10;
+ else if(t.deep)d=14+u*8;
+ else d={0:2.5,1:2,2:6,3:8,4:8,5:10,6:12}[L];
+ return slot==='R'?Math.max(-1,d-2):d;
+}
+const YAC={0:[3.5,3],1:[3,3],2:[2.5,3],3:[1.5,2],4:[1.5,2],5:[1.5,2],6:[3,3],7:[3,4],8:[4,5],9:[3,5]};
+const ROOB={0:.05,1:.35,2:.05,3:.55,4:.05,5:.7,6:.05,7:.5,8:.05,9:.25};
+/* default routes for each concept type, used when a play has no routes of its own */
+const CONCEPT={
+ quick:{X:'2',H:'1',Y:'1',Z:'2',R:'P'},
+ sideline:{X:'5',H:'7',Y:'7',Z:'5',R:'1'},
+ inter:{X:'6',H:'9',Y:'0',Z:'4',R:'1'},
+ deep:{X:'9',H:'9',Y:'9',Z:'9',R:'1'},
+ pa:{X:'8',H:'0',Y:'1',Z:'7',R:'P'},
+ hail:{X:'9',H:'9',Y:'9',Z:'9',R:'P'},
+ screen:{X:'S',Y:'S',Z:'S'},
+ inside:{X:'S',H:'S',Y:'S',Z:'S'},outside:{X:'S',H:'S',Y:'S',Z:'S'},draw:{X:'S',H:'S',Y:'S',Z:'S'},rpo:{X:'S',Z:'S'},sneak:{}
+};
+/* pieces outside the tree: run paths (absolute [x, up] from the ball), the screen, QB actions, RPO tags */
 const ROUTES={
- quick:{X:[[0,2],[-5,6]],H:[[0,5],[-1,5]],Y:[[2,1],[7,2]],Z:[[0,6],[0,5]],R:[[-3,1],[-4,3]]},
- sideline:{X:[[0,5],[0,4]],H:[[0,8],[7,15]],Y:[[0,10],[-8,10]],Z:[[0,10],[6,10]],R:[[3,1],[5,3]]},
- inter:{X:[[0,12],[-10,12]],H:[[0,18]],Y:[[0,5],[-14,9]],Z:[[0,15],[3,13]],R:[[-3,1],[-4,4]]},
- deep:{X:[[0,21]],H:[[1,8],[1,20]],Y:[[1,8],[1,20]],Z:[[0,21]],R:[[3,1],[5,3]]},
- pa:{X:[[0,10],[-5,18]],H:[[0,2],[-16,5]],Y:[[1,2],[8,4]],Z:[[0,10],[5,17]],Q:[[6,-2]]},
- screen:{H:[[2,-1],[6,-1.5]],X:[[0,2]],Y:[[0,2]],Z:[[0,2]]},
- hail:{X:[[3,21]],H:[[5,21]],Y:[[-5,21]],Z:[[-3,21]]},
- inside:{X:[[0,2]],H:[[0,2]],Y:[[0,2]],Z:[[0,2]],run:{who:'R',pts:[[.5,-2],[-1,1],[-1,7]]}},
- outside:{X:[[0,2]],H:[[0,2]],Y:[[0,2]],Z:[[0,2]],run:{who:'R',pts:[[5,-4],[12,-1],[14,5]]}},
- draw:{X:[[0,8]],H:[[0,8]],Y:[[0,8]],Z:[[0,8]],Q:[[0,-2]],run:{who:'R',pts:[[1,-3],[0,1],[0,7]]}},
+ pa:{Q:[[6,-2]]},
+ screen:{H:[[2,-1],[6,-1.5]]},
+ inside:{run:{who:'R',pts:[[.5,-2],[-1,1],[-1,7]]}},
+ outside:{run:{who:'R',pts:[[5,-4],[12,-1],[14,5]]}},
+ draw:{Q:[[0,-2]],run:{who:'R',pts:[[1,-3],[0,1],[0,7]]}},
  sneak:{run:{who:'Q',pts:[[0,1.8]]}},
- rpo:{X:[[0,2]],Z:[[0,2]],H:[[2,-1],[6,-1]],Y:[[0,4],[-1,4]],run:{who:'R',pts:[[-1,-3],[-1,1],[-1,6]]}}
+ rpo:{H:[[2,-1],[6,-1]],Y:[[0,4],[-1,4]],run:{who:'R',pts:[[-1,-3],[-1,1],[-1,6]]}}
 };
-const RNAMES={
- quick:{X:'slant',H:'stick',Y:'flat',Z:'hitch',R:'check-down'},
- sideline:{X:'hitch',H:'corner',Y:'dig',Z:'out',R:'check-down'},
- inter:{X:'dig',H:'seam',Y:'cross',Z:'comeback',R:'check-down'},
- deep:{X:'go',H:'seam',Y:'seam',Z:'go',R:'check-down'},
- pa:{X:'post',H:'drag',Y:'boot flat',Z:'corner'}
-};
-const TGTS={quick:{side:'Y',mid:'X',check:'R'},sideline:{side:'Z',mid:'Y',check:'R'},inter:{side:'Z',mid:'X',check:'R'},deep:{side:'Z',mid:'H',check:'R'},pa:{side:'Z',mid:'X',check:'Y'}};
-const TGINFO={side:{n:1,label:'Sideline',sub:'Out-breaking. Can stop the clock.'},mid:{n:2,label:'Middle',sub:'Bigger gain, clock keeps running, tighter window.'},check:{n:3,label:'Check-down',sub:'Safe and short.'}};
-const TGMOD={side:{y:.85,c:-.02,oob:.75,i:1},mid:{y:1.2,c:-.05,oob:.05,i:1.35},check:{c:.16,oob:.12,i:.4}};
+function parseRoutes(str){const m={};String(str||'').replace(/\b([XHYZR])\s*[-:=]?\s*(\d{1,2}|S|P)(?![\w])/gi,(_,a,b)=>{m[a.toUpperCase()]=b.toUpperCase();return'';});return m;}
+function fmtRoutes(m){return SLOTS.filter(k=>m[k]).map(k=>k+m[k]).join(' ');}
+function playRoutes(cat,str){return Object.assign({},CONCEPT[cat]||{},parseRoutes(str));}
+function passable(cat){return CATS[cat]&&CATS[cat].kind==='pass'&&cat!=='screen';}
+/* how a route reads to the QB */
+function routeClass(code,slot){const t=TREE[code[code.length-1]];if(slot==='R')return'check';if(t.deep)return'deep';return t.side==='out'?'out':'in';}
+const CLASSINFO={out:{label:'Outside',sub:'Outside the numbers. Can stop the clock.'},in:{label:'Inside',sub:'Inside the numbers. The clock keeps running on a catch.'},deep:{label:'Shot',sub:'Down the field. Bigger gain, lower percentage.'},check:{label:'Check-down',sub:'The safe, short answer.'}};
+const CLASSMOD={out:{c:0,i:1},in:{c:-.02,i:1.15},deep:{c:0,i:1.1},check:{c:.05,i:.6}};
+/* the QB's three answers: 1 outside, 2 a different window, 3 the check-down */
+function targetsFor(routes){
+ const c=SLOTS.filter(k=>isRoute(routes[k])),nonR=c.filter(k=>k!=='R'),used=new Set(),out={};
+ const cls=k=>routeClass(routes[k],k),d=k=>catchMean(routes[k],k);
+ const near=list=>list.slice().sort((a,b)=>Math.abs(d(a)-10)-Math.abs(d(b)-10))[0];
+ const free=list=>list.filter(k=>!used.has(k));
+ const first=near(nonR.filter(k=>cls(k)==='out'))||near(nonR.filter(k=>TREE[routes[k].slice(-1)].side==='out'))||near(nonR);
+ if(first){out.side=first;used.add(first);}
+ const second=near(free(nonR).filter(k=>cls(k)==='in'&&Math.abs(d(k)-d(first||k))>=2))||near(free(nonR).filter(k=>cls(k)==='in'))||near(free(nonR).filter(k=>cls(k)==='deep'))||near(free(nonR));
+ if(second){out.mid=second;used.add(second);}
+ const third=(c.includes('R')&&!used.has('R'))?'R':free(c).sort((a,b)=>d(a)-d(b))[0];
+ if(third)out.check=third;
+ return out;
+}
+const TGINFO={side:{n:1},mid:{n:2},check:{n:3}};
+const TGMOD={side:{c:0,i:1},mid:{c:-.02,i:1.15},check:{c:.05,i:.6}};
 const M={
  box:{inside:[.62],outside:[.85],draw:[.7],sneak:[.9],rpo:[1.15],quick:[1.15,.05],sideline:[1.05,.02],inter:[1.1,.03],deep:[1.3,.08,1,.9],pa:[1.35,.08],screen:[1]},
  two:{inside:[1.25],outside:[1.1],draw:[1.3],sneak:[1.05],rpo:[1.15],quick:[.95,.05],sideline:[.8,-.08],inter:[.95,0],deep:[.6,-.12,1,1.6],pa:[.85,-.03],screen:[1.1,.03]},
@@ -481,11 +554,11 @@ const LOOKS={
 
 /* ================= team ================= */
 const SAMPLE={name:'Your team',run:3,pro:3,qb:3,kick:35,def:3,blitz:'med',pc:40,
- book:[['Inside Zone','inside','pistol'],['Power','inside','pro'],['Jet Sweep','outside','doubles'],['Zone Read','rpo','pistol'],['QB Draw','draw','doubles'],['Sneak','sneak','pro'],['Stick','quick','trips'],['Slant-Flat','quick','doubles'],['Smash','sideline','doubles'],['Out-Dig','sideline','trips'],['Dagger','inter','doubles'],['Y-Cross','inter','trips'],['Four Verts','deep','doubles'],['Boot','pa','pro'],['Bubble Screen','screen','trips'],['Hail Mary','hail','empty']]};
+ book:[['Inside Zone','inside','pistol',''],['Power','inside','pro',''],['Jet Sweep','outside','doubles',''],['Zone Read','rpo','pistol',''],['QB Draw','draw','doubles',''],['Sneak','sneak','pro',''],['Slant-Flat','quick','doubles','X2 H1 Y1 Z2'],['Mesh','quick','doubles','X9 H0 Y0 Z9 R1'],['Corner-Out','sideline','doubles','X5 H7 Y7 Z5 R1'],['Comeback-Flat','sideline','trips','X3 H1 Y4 Z3 R0'],['Dagger','inter','doubles','X6 H9 Y0 Z4 R1'],['Drive','inter','trips','X9 H6 Y0 Z9 R1'],['Four Verts','deep','doubles','X9 H9 Y9 Z9 R1'],['Post-Corner','deep','doubles','X8 H9 Y9 Z87 R1'],['Boot','pa','pro','X8 H0 Y1 Z7'],['Bubble Screen','screen','trips',''],['Hail Mary','hail','empty','']]};
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let T=load('csd-team',null)||JSON.parse(JSON.stringify(SAMPLE));
-T.book=T.book.filter(b=>CATS[b[1]]).map(b=>[b[0],b[1],FORMS[b[2]]?b[2]:DEFFORM[b[1]]]);
+T.book=T.book.filter(b=>CATS[b[1]]).map(b=>[b[0],b[1],FORMS[b[2]]?b[2]:DEFFORM[b[1]],fmtRoutes(parseRoutes(b[3]||''))]);
 let MODE=load('csd-mode','coach');
 let BEST=load('csd-best',{});
 
@@ -529,7 +602,7 @@ function lookW(s){
  else w={c3:.4,box:.25,two:.15,blitz:.2};
  w.blitz*=bm;return w;
 }
-function simPlay(cat,s,look,r,tgt,form){
+function simPlay(cat,s,look,r,tgt,form,routes){
  const b=CATS[cat],m=mt(look,cat),F=FORMS[form]||FORMS.doubles,rr=T.run-3,pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
  const o={cat,type:'run',y:0,oob:false,dur:5,tgt:tgt||'auto'};
  if(b.kind==='run'){
@@ -549,7 +622,8 @@ function simPlay(cat,s,look,r,tgt,form){
   if(x<.16+(.09+.02*qq)*reach){o.type='comp';o.y=s.ytg;o.dur=8;return o;}
   o.type='inc';o.dur=8;return o;
  }
- const sackP=b.sack*m.s*F.sack*(1-.17*pp)*(1+.1*dd)*(tgt==='check'?.6:1);
+ if(passable(cat)&&cat!=='hail')return simRoutePass(cat,s,look,r,tgt,F,routes||CONCEPT[cat],o);
+ const sackP=b.sack*m.s*F.sack*(1-.17*pp)*(1+.1*dd);
  if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
  let comp=b.comp+m.c+.05*qq-.03*dd+(F.pass-1)*.5;
  if(s.ytg<=20&&(cat==='deep'||cat==='pa'||cat==='inter'))comp-=.06;
@@ -573,6 +647,47 @@ function simPlay(cat,s,look,r,tgt,form){
  }
  o.type='inc';o.dur=5;return o;
 }
+function pickTarget(s,look,tg,r){
+ const w={};if(tg.side)w.side=.33;if(tg.mid)w.mid=.37;if(tg.check)w.check=.3;
+ if(look==='two'){if(w.mid)w.mid*=1.5;if(w.side)w.side*=.6;}
+ if(look==='blitz'){if(w.check)w.check*=1.6;if(w.mid)w.mid*=.7;}
+ if(look==='box'&&w.mid)w.mid*=1.3;
+ if(look==='c3'&&w.side)w.side*=1.2;
+ if(s.obj==='win'&&s.margin<0&&s.TO===0&&s.t<=60&&w.side)w.side*=1.6;
+ return pick(w,r);
+}
+/* a pass to one receiver on his route: depth comes from the route tree */
+function simRoutePass(cat,s,look,r,tgt,F,routes,o){
+ const b=CATS[cat],m=mt(look,cat),pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
+ const tg=targetsFor(routes);
+ let key=(tgt&&tgt!=='auto'&&tg[tgt])?tgt:pickTarget(s,look,tg,r);
+ const slot=tg[key];
+ if(!slot){o.type='inc';o.dur=5;return o;}
+ const rc=routes[slot],L=rc[rc.length-1];
+ o.tgt=key;o.slot=slot;o.rc=rc;
+ const md=catchMean(rc,slot);
+ const sackP=b.sack*m.s*F.sack*(1-.17*pp)*(1+.1*dd)*(md<=4?.5:md<=8?.8:md>=15?1.15:1);
+ if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
+ let cy=Math.min(catchDepth(rc,r,slot),s.ytg+8);o.cy=cy;
+ let comp=.6+(cy<=4?.1:cy<=8?.04:cy<=12?-.04:-.22)+m.c+.05*qq-.03*dd+(F.pass-1)*.5;
+ let intP=.03*(cy>=15?1.6:cy<=4?.6:1)*m.i*(1-.15*qq);
+ const cl=routeClass(rc,slot),g=CLASSMOD[cl];comp+=g.c;intP*=g.i;
+ if(look==='two'){if(cl==='out')comp-=.06;if(cl==='in')comp+=.04;if(cl==='deep')comp-=.05;}
+ if(look==='blitz'){if(cl==='check')comp+=.05;if(cl==='in')intP*=1.3;if(cl==='deep')comp+=.03;}
+ if(look==='box'&&cl==='in')comp+=.05;
+ if(look==='c3'&&cl==='out')comp+=.02;
+ if(s.ytg<=20&&cy>=s.ytg)comp-=.05;
+ const x=r();
+ if(x<intP){o.type='int';o.air=Math.max(3,cy);o.dur=6;return o;}
+ if(x<intP+clamp(comp,.08,.92)){
+  const[ym,ys]=YAC[L];
+  let y=cy+(ym+ys*gauss(r))*clamp(m.y,.8,1.25)*(1+.04*qq)*(1-.06*dd);
+  if(r()<(TREE[L].deep?.09:.05))y+=6-Math.log(1-r())*12;
+  y=Math.round(Math.max(cy-1,y));
+  o.type='comp';o.y=y;o.oob=r()<ROOB[L];o.dur=6+Math.max(0,y)/15;return o;
+ }
+ o.type='inc';o.dur=5;return o;
+}
 const RUNOFF={40:{running:{hurry:14,normal:27,milk:37},ready:{hurry:9,normal:18,milk:24}},25:{running:{hurry:14,normal:24,milk:30},ready:{hurry:9,normal:17,milk:23}}};
 function runoff(status,tempo){if(status==='snap')return 0;return RUNOFF[T.pc==25?25:40][status][tempo];}
 function applyB(s,ch){
@@ -590,7 +705,7 @@ function applyB(s,ch){
  if(ro>=s.t){s.t=0;return{end:'time'};}
  s.t-=ro;s.live=true;s.status='snap';return null;
 }
-function execA(s,act,look,r,tgt,form){
+function execA(s,act,look,r,tgt,form,routes){
  if(act==='kneel')return{end:'kneel'};
  if(act==='fg'){
   if(s.live){if(s.t<=8){s.t=0;return{end:'time',kick:true};}s.t-=8;}
@@ -600,7 +715,7 @@ function execA(s,act,look,r,tgt,form){
   return{end:'fgmiss',dist,blocked,oppYtg:blocked?100-Math.min(99,s.ytg+7):80};
  }
  if(act==='punt'){s.t=Math.max(0,s.t-8);const land=s.ytg-32;return{end:'punt',oppYtg:land<=0?80:100-land};}
- const o=simPlay(act,s,look,r,tgt,form);
+ const o=simPlay(act,s,look,r,tgt,form,routes);
  s.t=Math.max(0,s.t-Math.round(o.dur));
  if(o.type==='int'){const spot=clamp(s.ytg-(o.air||8)+8,5,95);return{end:'int',o,oppYtg:100-spot};}
  if(o.type==='fum')return{end:'fum',o,oppYtg:100-(s.ytg-o.y)};
@@ -700,7 +815,7 @@ function rollout(s0,r,first){
  const s={...s0};let fs=null,phase='B';
  if(first.pre){const e=applyB(s,first.pre);if(e)return{v:terminal(e,s),fs:0};phase='A';}
  if(first.action){
-  const e=execA(s,first.action,first.look,r,first.tgt,first.form);
+  const e=execA(s,first.action,first.look,r,first.tgt,first.form,first.routes);
   fs=(e.end==='td'||e.end==='fg'||(e.o&&e.o.first))?1:0;
   if(e.end)return{v:terminal(e,s),fs};
   phase='B';
@@ -742,7 +857,7 @@ function needStr(s){
 }
 function valStr(v,obj){return obj==='win'?(v*100).toFixed(1)+'%':(v>=0?'+':'')+v.toFixed(2)+' pts';}
 function diffStr(d,obj){return obj==='win'?(d*100).toFixed(1)+' points of win chance':d.toFixed(2)+' expected points';}
-const hasTargets=cat=>!!TGTS[cat];
+const hasTargets=opt=>passable(opt.act)&&opt.act!=='hail'&&Object.keys(targetsFor(opt.routes||{})).length>=2;
 
 /* ================= game flow ================= */
 let G=null,curTab='two';
@@ -775,7 +890,7 @@ function beginSnap(){
  }
  G.calls=playerCalls(s,G.look,a);G.phase='P';renderAll();
 }
-function bookEntry(name,cat,form,tag){return{label:name,act:cat,form,grp:CATS[cat].grp,tag:tag||(CATS[cat].label+' · '+FORMS[form].label)};}
+function bookEntry(name,cat,form,rs,tag){const routes=playRoutes(cat,rs);const nums=passable(cat)&&cat!=='hail'?' · '+fmtRoutes(routes).replace(/ ?R(P|S)\b/,''):'';return{label:name,act:cat,form,rs:rs||'',routes,grp:CATS[cat].grp,tag:tag||(CATS[cat].label+' · '+FORMS[form].label+nums)};}
 function playerCalls(s,look,coachCat){
  const ok=b=>CATS[b[1]]&&!(b[1]==='hail'&&(s.ytg<25||s.t>20))&&!(b[1]==='sneak'&&s.dist>3);
  const book=T.book.filter(ok);
@@ -791,15 +906,15 @@ function playerCalls(s,look,coachCat){
  let other=rest.filter(b=>b[1]!==c1[1]&&CATS[b[1]].grp!==CATS[c0[1]].grp);
  if(!other.length)other=rest.filter(b=>b[1]!==c1[1]);
  const c2=other.length?rnd(other):c1;
- return [c0,c1,c2].map((b,i)=>({...bookEntry(b[0],b[1],b[2]),eyebrow:i===0?'Run the call':'Check to'}));
+ return [c0,c1,c2].map((b,i)=>({...bookEntry(b[0],b[1],b[2],b[3]),eyebrow:i===0?'Run the call':'Check to'}));
 }
 function optionsA(){
  const s=G.s,opts=[];
- T.book.forEach(([name,cat,form])=>{if(!CATS[cat])return;if(cat==='hail'&&s.ytg<25)return;opts.push(bookEntry(name,cat,form));});
+ T.book.forEach(([name,cat,form,rs])=>{if(!CATS[cat])return;if(cat==='hail'&&s.ytg<25)return;opts.push(bookEntry(name,cat,form,rs));});
  if(s.ytg<=45)opts.push({label:'Field goal',act:'fg',grp:'sp',tag:(s.ytg+17)+' yards, '+Math.round(fgProb(s.ytg+17,T.kick)*100)+'% for your kicker'});
  if(s.down===4&&s.ytg>=35)opts.push({label:'Punt',act:'punt',grp:'sp',tag:'Flip the field'});
  if(s.obj==='points')opts.push({label:'Kneel',act:'kneel',grp:'sp',tag:'Run out the half'});
- return opts.map(o=>({...o,key:o.act+'|'+(o.form||''),first:{action:o.act,look:G.look,form:o.form,tgt:'auto'}}));
+ return opts.map(o=>({...o,key:o.act+'|'+(o.form||'')+'|'+(o.rs||''),first:{action:o.act,look:G.look,form:o.form,tgt:'auto',routes:o.routes}}));
 }
 function optionsB(){
  const s=G.s,o=[];
@@ -810,13 +925,13 @@ function optionsB(){
 }
 function optionsP(){
  const s=G.s,pre=s.status!=='snap'?'hurry':null;
- const o=G.calls.map(c=>({...c,key:c.act+'|'+c.form,first:{pre,action:c.act,look:G.look,form:c.form,tgt:'auto'}}));
+ const o=G.calls.map(c=>({...c,key:c.act+'|'+c.form+'|'+(c.rs||''),first:{pre,action:c.act,look:G.look,form:c.form,tgt:'auto',routes:c.routes}}));
  if(s.status!=='snap'&&s.down<=3)o.push({label:'Spike it',act:'spike',grp:'sp',eyebrow:'Clock it',tag:'Stop the clock, lose a down',key:'spike',first:{pre:'spike'}});
  return o;
 }
 function optionsT(){
- const s=G.s,c=G.pend,pre=s.status!=='snap'?'hurry':null,map=TGTS[c.act];
- return ['side','mid','check'].map(k=>({label:TGINFO[k].n+'. '+TGINFO[k].label,act:k,slot:map[k],tag:map[k]+' '+RNAMES[c.act][map[k]]+'. '+TGINFO[k].sub,key:k,first:{pre,action:c.act,look:G.look,form:c.form,tgt:k}}));
+ const s=G.s,c=G.pend,pre=s.status!=='snap'?'hurry':null,map=targetsFor(c.routes);
+ return ['side','mid','check'].filter(k=>map[k]).map(k=>{const sl=map[k],rc=c.routes[sl],ci=CLASSINFO[routeClass(rc,sl)];return{label:TGINFO[k].n+'. '+sl+' '+routeName(rc),act:k,slot:sl,tag:ci.label+' ('+rc+'), '+(catchMean(rc,sl)<=1?'caught near the line':'caught around '+Math.round(catchMean(rc,sl))+' yards')+'. '+ci.sub,key:k,first:{pre,action:c.act,look:G.look,form:c.form,tgt:k,routes:c.routes}};});
 }
 function grade(phase,opts,opt,heading){
  const ev=evaluate(G.s,opts);
@@ -833,7 +948,7 @@ function busyThen(fn){G.phase='busy';renderDecide();setTimeout(fn,30);}
 function chooseA(opt){busyThen(()=>{
  const f=grade('A',optionsA(),opt,'Play call');
  const s=G.s,sb={...s};
- const e=execA(s,opt.act,G.look,realR,'auto',opt.form);
+ const e=execA(s,opt.act,G.look,realR,'auto',opt.form,opt.routes);
  afterSnap(f,opt,e,sb,'auto');
 });}
 function chooseB(opt){busyThen(()=>{
@@ -855,7 +970,7 @@ function chooseP(opt){busyThen(()=>{
   if(e){finish(e);return;}
   beginSnap();return;
  }
- if(hasTargets(opt.act)){G.pend=opt;G.phase='T';renderAll();return;}
+ if(hasTargets(opt)){G.pend=opt;G.phase='T';renderAll();return;}
  snapPlayer(opt,'auto',f);
 });}
 function chooseT(opt){busyThen(()=>{
@@ -871,7 +986,7 @@ function snapPlayer(opt,tgt,f){
   if(e0){f.text='Time expired before the snap.';finish(e0);return;}
  }
  const sb={...s};
- const e=execA(s,opt.act,G.look,realR,tgt,opt.form);
+ const e=execA(s,opt.act,G.look,realR,tgt,opt.form,opt.routes);
  afterSnap(f,opt,e,sb,tgt);
 }
 function afterSnap(f,opt,e,sb,tgt){
@@ -888,7 +1003,7 @@ function narrate(name,act,e,sb){
  if(act==='punt')return'Punt. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(act==='kneel')return'Victory formation. Into the half.';
  const o=e.o;if(!o)return name;
- const tw=o.tgt&&TGTS[act]&&o.tgt!=='auto'?' to the '+TGTS[act][o.tgt]+' on the '+RNAMES[act][TGTS[act][o.tgt]]:'';
+ const tw=o.slot&&o.rc?' to the '+o.slot+' on the '+routeName(o.rc)+' ('+o.rc+')':'';
  if(o.type==='int')return name+': intercepted'+(tw?' going'+tw:'')+'. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(o.type==='fum')return name+': fumble, recovered by the defense.';
  if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards.';
@@ -926,7 +1041,7 @@ function teachNote(f){
   else if(f.look==='box')parts.push('Eight in the box means fewer underneath defenders. The middle window is bigger than usual.');
   else parts.push('Cover 3 corners bail deep, so out-breaking throws in front of them are there.');
   if(s.t<=60&&s.TO===0&&need>0)parts.push('No timeouts left. A catch in the middle keeps the clock running, and you lose about '+runoff('running','hurry')+' seconds getting set again.');
-  if(b.key!==m.key)parts.push('Throwing '+b.label.replace(/^\d\. /,'').toLowerCase()+' was worth '+diffStr(b.v-m.v,s.obj)+' more.');
+  if(b.key!==m.key)parts.push('Throwing '+b.label.replace(/^\d\. /,'')+' was worth '+diffStr(b.v-m.v,s.obj)+' more.');
  } else {
   parts.push(s.status==='ready'?'After a first down the clock restarts on the ready signal, so a snap here costs less time than after a run short of the sticks.':'The clock is running. Every second spent getting to the line is gone.');
   if(b.key!==m.key)parts.push(b.label+' was worth '+diffStr(b.v-m.v,s.obj)+' more.');
@@ -951,9 +1066,17 @@ function defPos(look,P){
  return m[look]||m.c3;
 }
 function routePts(P,slot,pts,abs){
- const st=P[slot];if(!st)return null;
+ const st=P[slot];if(!st||!pts)return null;
  const sign=st[0]<0?-1:1;
- return [st].concat(pts.map(p=>abs?[p[0],p[1]]:[st[0]+sign*p[0],st[1]+p[1]]));
+ return [st].concat(pts.map(p=>abs===true?[p[0],p[1]]:abs==='tree'?[st[0]+sign*p[0],p[1]]:[st[0]+sign*p[0],st[1]+p[1]]));
+}
+/* where on the drawn route the ball is caught */
+function catchPt(pts,code,cy){
+ const t=TREE[code[code.length-1]],a=pts[pts.length-2],b=pts[pts.length-1];
+ if(t.v[1]<0)return b;
+ if(t.v[1]<=1&&code.length===1)return[a[0]+(b[0]-a[0])*.6,a[1]+(b[1]-a[1])*.6];
+ for(let i=1;i<pts.length;i++){const p=pts[i-1],q=pts[i];if(q[1]>p[1]&&cy>p[1]&&cy<=q[1]){const u=(cy-p[1])/(q[1]-p[1]);return[p[0]+(q[0]-p[0])*u,cy];}}
+ return b;
 }
 function clampPt(p,maxY){return[clamp(p[0],-25.5,25.5),clamp(p[1],-10.5,maxY)];}
 function poly(pts,cls,maxY,marker){return'<polyline class="'+cls+'" points="'+pts.map(p=>{const q=clampPt(p,maxY);return SX(q[0])+','+SY(q[1]);}).join(' ')+'"'+(marker?' marker-end="url(#'+marker+')"':'')+'/>';}
@@ -962,7 +1085,7 @@ function renderFormation(){
  let form='doubles',cat=null,look=null,mode='base',ytg=s.ytg,dist=s.dist,tg=null;
  if((G.phase==='result'||G.phase==='done')&&G.last&&!G.last.special){form=G.last.form||'doubles';cat=G.last.cat;look=G.last.look;mode='result';ytg=G.last.sb.ytg;dist=G.last.sb.dist;}
  else if((G.phase==='result'||G.phase==='done')&&G.last&&G.last.special){look=G.last.look;mode='special';ytg=G.last.sb.ytg;dist=G.last.sb.dist;form='pro';}
- else if(G.phase==='T'&&G.pend){form=G.pend.form;cat=G.pend.act;look=G.look;mode='target';tg=TGTS[cat];}
+ else if(G.phase==='T'&&G.pend){form=G.pend.form;cat=G.pend.act;look=G.look;mode='target';tg=targetsFor(G.pend.routes);}
  else if(G.preview){form=G.preview.form||'doubles';cat=G.preview.act;look=G.look;mode='preview';}
  else if(G.phase==='P'&&G.calls){form=G.calls[0].form;cat=G.calls[0].act;look=G.look;mode='preview';}
  else if(G.phase==='A'||G.phase==='busy'){look=G.look;}
@@ -983,19 +1106,29 @@ function renderFormation(){
  g+='<line class="f-los" x1="0" y1="'+SY(0)+'" x2="540" y2="'+SY(0)+'"/>';
  if(dist<ytg&&mode!=='special')g+='<line class="f-first" x1="0" y1="'+SY(dist)+'" x2="540" y2="'+SY(dist)+'"/>';
  // routes
- let rtSvg='',badges='';
- if(cat&&ROUTES[cat]&&mode!=='base'){
-  const R=ROUTES[cat];
-  for(const k of['X','H','Y','Z','R','Q']){if(!R[k])continue;const pts=routePts(P,k,R[k]);if(!pts)continue;
-   let cls='rt';if(mode==='target')cls+=(tg&&Object.values(tg).includes(k))?' hot':' dim';
-   if(mode==='result'&&G.last.tgt&&tg===null&&TGTS[cat]&&G.last.tgt!=='auto')cls+=TGTS[cat][G.last.tgt]===k?' hot':' dim';
-   rtSvg+=poly(pts,cls,maxY,'ah');}
-  if(R.run){const pts=routePts(P,R.run.who,R.run.pts,true);if(pts)rtSvg+=poly(pts,'rt run',maxY,'ahr');}
+ let rtSvg='',badges='',rnums='';const geo={};
+ const src=mode==='result'?G.last.opt:mode==='target'?G.pend:mode==='preview'?(G.preview||(G.calls&&G.calls[0])):null;
+ const RT=(src&&src.routes)||(cat?CONCEPT[cat]:null)||{};
+ if(cat&&mode!=='base'&&mode!=='special'){
+  const ex=ROUTES[cat]||{};
+  const ro=mode==='result'&&G.last.e&&G.last.e.o;
+  const hot=mode==='target'?new Set(Object.values(tg)):(ro&&ro.slot)?new Set([ro.slot]):null;
+  for(const k of['X','H','Y','Z','R','Q']){
+   let pts=null,code=null;
+   if(ex[k])pts=routePts(P,k,ex[k]);
+   else if(RT[k]&&RT[k]!=='P'){code=RT[k];pts=routePts(P,k,treePts(code,k),'tree');}
+   if(!pts)continue;geo[k]={pts,code};
+   let cls='rt';if(hot)cls+=hot.has(k)?' hot':' dim';
+   rtSvg+=poly(pts,cls,maxY,code==='S'?null:'ah');
+   if(isRoute(code)&&mode!=='target'){const e=clampPt(pts[pts.length-1],maxY-.8);rnums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+code+'</text>';}
+  }
+  if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts,true);if(pts)rtSvg+=poly(pts,'rt run',maxY,'ahr');}
   if(mode==='target'){
-   for(const key of['side','mid','check']){const slot=tg[key],pts=routePts(P,slot,R[slot]||[[0,2]]),end=clampPt(pts[pts.length-1],maxY-1);
-    const x=SX(end[0]),y=SY(end[1]);const lx=clamp(x,30,510);
-    badges+='<g class="tg click" data-tgt="'+key+'" tabindex="0" role="button" aria-label="Throw '+TGINFO[key].label+': '+slot+' '+RNAMES[cat][slot]+'"><circle cx="'+x+'" cy="'+y+'" r="12"/><text x="'+x+'" y="'+(y+4.5)+'" text-anchor="middle">'+TGINFO[key].n+'</text></g>';
-    badges+='<text class="tag" x="'+lx+'" y="'+(y-17)+'" text-anchor="middle">'+slot+' '+RNAMES[cat][slot]+'</text>';}
+   for(const key of['side','mid','check']){const slot=tg[key];if(!slot||!geo[slot])continue;const gp=geo[slot];
+    const cp=clampPt(catchPt(gp.pts,gp.code,catchMean(gp.code,slot)),maxY-1);
+    const x=SX(cp[0]),y=SY(cp[1]),lx=clamp(x,40,500),nm=slot+' '+routeName(gp.code)+' ('+gp.code+')';
+    badges+='<g class="tg click" data-tgt="'+key+'" tabindex="0" role="button" aria-label="Throw '+TGINFO[key].n+': '+nm+'"><circle cx="'+x+'" cy="'+y+'" r="12"/><text x="'+x+'" y="'+(y+4.5)+'" text-anchor="middle">'+TGINFO[key].n+'</text></g>';
+    badges+='<text class="tag" x="'+lx+'" y="'+(y-17)+'" text-anchor="middle">'+nm+'</text>';}
   }
  }
  // defense
@@ -1006,7 +1139,7 @@ function renderFormation(){
  let oSvg='';
  [-4,-2,0,2,4].forEach(x=>{const cx=SX(x),cy=SY(-.8);oSvg+=x===0?'<rect class="o-man" x="'+(cx-OR)+'" y="'+(cy-OR)+'" width="'+2*OR+'" height="'+2*OR+'"/>':'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+OR+'"/>';});
  for(const k of['X','H','Y','Z','R','Q']){const[x,y]=P[k];const cx=SX(x),cy=SY(y);oSvg+='<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+PR+'"/><text class="o-lab" x="'+cx+'" y="'+(cy+FS*.36)+'" text-anchor="middle" style="font-size:'+FS+'px">'+k+'</text>';}
- g+=dSvg+rtSvg+oSvg+badges;
+ g+=dSvg+rtSvg+oSvg+rnums+badges;
  // result path
  let anim=null;
  if(mode==='result'){
@@ -1020,11 +1153,11 @@ function renderFormation(){
     lab=o.type==='fum'?'FUMBLE':(gain>=0?'+':'')+gain;
    } else if(o.type==='sack'){path=[P.Q,[P.Q[0],o.y]];lab='SACK';}
    else{
-    let slot=TGTS[cat]?TGTS[cat][o.tgt!=='auto'?o.tgt:'mid']:cat==='screen'?'H':'Z';
-    const rp=routePts(P,slot,(R[slot]||[[0,6]])),end=rp[rp.length-1];
-    if(o.type==='inc'){path=[P.Q,end];lab='INC';}
-    else if(o.type==='int'){path=[P.Q,end];lab='INT';}
-    else{const cy=Math.min(gain,Math.max(end[1],0));path=[P.Q,[end[0],cy],[end[0],gain]];lab='+'+gain;}
+    const slot=o.slot||(cat==='screen'?'H':'Z'),gp=geo[slot];
+    const cp=gp?(isRoute(gp.code)?catchPt(gp.pts,gp.code,o.cy!=null?o.cy:catchMean(gp.code,slot)):gp.pts[gp.pts.length-1]):[0,Math.max(1,gain)];
+    if(o.type==='inc'){path=[P.Q,cp];lab='INC';}
+    else if(o.type==='int'){path=[P.Q,cp];lab='INT';}
+    else{path=[P.Q,cp,[cp[0],gain]];lab=(gain>=0?'+':'')+gain;}
    }
    if(G.last.e.end==='td')lab='TD';
    g+=poly(path,'bpath',maxY,null);
@@ -1191,7 +1324,7 @@ function renderDecide(){
 function bindCalls(el,opts,fn){
  el.querySelectorAll('.call').forEach(b=>{const o=opts[+b.dataset.i];
   b.onclick=()=>fn(o);
-  const show=()=>{if(ROUTES[o.act]){G.preview=o;renderFormation();}};
+  const show=()=>{if(CATS[o.act]){G.preview=o;renderFormation();}};
   const hide=()=>{if(G.preview===o){G.preview=null;renderFormation();}};
   b.addEventListener('mouseenter',show);b.addEventListener('focus',show);
   b.addEventListener('mouseleave',hide);b.addEventListener('blur',hide);});
@@ -1208,10 +1341,11 @@ function openTeam(){
 function renderBook(){
  const co=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
  const fo=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
- $('#book').innerHTML=T.book.map(([n],i)=>'<div class="bk"><input id="bkN'+i+'" type="text" value="'+esc(n)+'" aria-label="Play name" maxlength="28"><select id="bkC'+i+'" aria-label="Concept type">'+co+'</select><select id="bkF'+i+'" aria-label="Formation">'+fo+'</select><button data-del="'+i+'" aria-label="Remove '+esc(n)+'">×</button></div>').join('');
+ $('#book').innerHTML='<div class="bk bkhd" aria-hidden="true"><span>Play</span><span>Concept</span><span>Formation</span><span>Routes</span><span></span></div>'+T.book.map(([n,c,f,rs],i)=>'<div class="bk"><input id="bkN'+i+'" type="text" value="'+esc(n)+'" aria-label="Play name" maxlength="28"><select id="bkC'+i+'" aria-label="Concept type">'+co+'</select><select id="bkF'+i+'" aria-label="Formation">'+fo+'</select><input id="bkR'+i+'" class="rin" type="text" value="'+esc(rs||'')+'" aria-label="Routes for '+esc(n)+'" placeholder="'+esc(passable(c)&&c!=='hail'?fmtRoutes(CONCEPT[c]).replace(/ ?R(P|S)\b/,''):'—')+'" spellcheck="false" autocapitalize="characters"><button data-del="'+i+'" aria-label="Remove '+esc(n)+'">×</button></div>').join('');
  T.book.forEach(([n,c,f],i)=>{$('#bkC'+i).value=c;$('#bkF'+i).value=f;
+  $('#bkR'+i).onchange=e=>{const v=fmtRoutes(parseRoutes(e.target.value));T.book[i][3]=v;e.target.value=v;saveTeam();};
   $('#bkN'+i).oninput=e=>{T.book[i][0]=e.target.value||'Play';saveTeam();};
-  $('#bkC'+i).onchange=e=>{T.book[i][1]=e.target.value;saveTeam();};
+  $('#bkC'+i).onchange=e=>{T.book[i][1]=e.target.value;saveTeam();renderBook();};
   $('#bkF'+i).onchange=e=>{T.book[i][2]=e.target.value;saveTeam();};});
  $('#book').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(T.book.length<=3)return;T.book.splice(+b.dataset.del,1);saveTeam();renderBook();});
 }
@@ -1249,7 +1383,7 @@ function encodeBook(){const o={v:1,n:T.name,r:[T.run,T.pro,T.qb,T.kick,T.def],b:
 function decodeBook(str){const m=str.trim().match(/CSD1:([A-Za-z0-9+/=\s]+)/);if(!m)return null;
  try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/\s+/g,'')))));
   if(!Array.isArray(o.k))return null;
-  const rows=o.k.slice(0,80).map(b=>({name:String(b[0]||'Play').slice(0,28),cat:CATS[b[1]]?b[1]:'quick',form:FORMS[b[2]]?b[2]:DEFFORM[b[1]]||'doubles',q:false}));
+  const rows=o.k.slice(0,80).map(b=>({name:String(b[0]||'Play').slice(0,28),cat:CATS[b[1]]?b[1]:'quick',form:FORMS[b[2]]?b[2]:DEFFORM[b[1]]||'doubles',rs:fmtRoutes(parseRoutes(b[3]||'')),q:false}));
   return{rows,team:{name:String(o.n||'Their team').slice(0,30),r:o.r,b:o.b,p:o.p}};
  }catch(e){return null;}}
 function parseLines(text){
@@ -1260,16 +1394,18 @@ function parseLines(text){
   let parts=sep?line.split(sep).map(x=>x.trim().replace(/^"|"$/g,'')):[line.trim()];
   parts=parts.filter(x=>x!=='');
   if(!parts.length)return;
-  const name=parts[0];
+  const rs=fmtRoutes(parseRoutes(parts.slice(1).join(' ')+' '+parts[0]));
+  const name=parts[0].replace(/\b[XHYZR]\s*[-:=]?\s*(\d{1,2}|S|P)(?![\w])/gi,'').replace(/\s{2,}/g,' ').trim()||parts[0];
   if(/^(play|name|call|play name)$/i.test(name))return;
   let cat=normCat(parts[1]),form=normForm(parts[2]);
   // a lone second column might be a formation
   if(!cat&&parts[1]&&normForm(parts[1])&&!parts[2]){form=normForm(parts[1]);}
   const gc=guessCat(name+' '+(parts[1]&&!cat?parts[1]:''));
-  const q=!cat&&!gc;
+  let q=!cat&&!gc;
+  if(q&&rs){const d=rs.replace(/[XHYZR]/g,'');cat=(d.match(/9/g)||[]).length>=2?'deep':/[537]/.test(d)?'sideline':/[648]/.test(d)?'inter':'quick';q=false;}
   cat=cat||gc||'quick';
   form=form||guessForm(name)||DEFFORM[cat];
-  rows.push({name:name.slice(0,28),cat,form,q});
+  rows.push({name:name.slice(0,28),cat,form,rs,q});
  });
  return rows.slice(0,80);
 }
@@ -1291,15 +1427,16 @@ function renderPreview(){
  const co=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
  const fo=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
  el.innerHTML='<div class="prev"><div class="prevhead"><b>Review before adding</b>'+(IMP.team?'<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="impTeam" checked> Also use their team ratings</label>':'')+'</div>'
-  +IMP.rows.map((r,i)=>'<div class="bk"><input id="ipN'+i+'" type="text" value="'+esc(r.name)+'" aria-label="Play name" maxlength="28"><select id="ipC'+i+'" aria-label="Concept type">'+co+'</select><select id="ipF'+i+'" aria-label="Formation">'+fo+'</select><button data-x="'+i+'" aria-label="Skip '+esc(r.name)+'">×</button></div>'+(r.q?'<span class="q">Check the concept for '+esc(r.name)+'</span>':'')).join('')
+  +IMP.rows.map((r,i)=>'<div class="bk"><input id="ipN'+i+'" type="text" value="'+esc(r.name)+'" aria-label="Play name" maxlength="28"><select id="ipC'+i+'" aria-label="Concept type">'+co+'</select><select id="ipF'+i+'" aria-label="Formation">'+fo+'</select><input id="ipR'+i+'" class="rin" type="text" value="'+esc(r.rs||'')+'" aria-label="Routes" placeholder="default" spellcheck="false"><button data-x="'+i+'" aria-label="Skip '+esc(r.name)+'">×</button></div>'+(r.q?'<span class="q">Check the concept for '+esc(r.name)+'</span>':'')).join('')
   +'<div class="improw"><button class="btn primary" id="impReplace">Replace my call sheet</button><button class="btn" id="impAdd">Add to my call sheet</button><button class="btn" id="impCancel">Cancel</button></div></div>';
  IMP.rows.forEach((r,i)=>{$('#ipC'+i).value=r.cat;$('#ipF'+i).value=r.form;
   $('#ipN'+i).oninput=e=>{r.name=e.target.value||'Play';};
+  $('#ipR'+i).onchange=e=>{r.rs=fmtRoutes(parseRoutes(e.target.value));e.target.value=r.rs;};
   $('#ipC'+i).onchange=e=>{r.cat=e.target.value;r.q=false;};
   $('#ipF'+i).onchange=e=>{r.form=e.target.value;};});
  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{IMP.rows.splice(+b.dataset.x,1);if(!IMP.rows.length)IMP=null;renderPreview();});
  const apply=replace=>{
-  const rows=IMP.rows.map(r=>[r.name.slice(0,28),r.cat,r.form]);
+  const rows=IMP.rows.map(r=>[r.name.slice(0,28),r.cat,r.form,r.rs||'']);
   if(replace)T.book=rows;else T.book=T.book.concat(rows).slice(0,100);
   if(IMP.team&&$('#impTeam')&&$('#impTeam').checked){const t=IMP.team;T.name=t.name;
    if(Array.isArray(t.r)&&t.r.length===5){[T.run,T.pro,T.qb,T.kick,T.def]=t.r.map((v,j)=>clamp(+v||3,j===3?20:1,j===3?50:5));}
@@ -1324,12 +1461,12 @@ $('#impFile').addEventListener('change',e=>{const f=e.target.files&&e.target.fil
  rd.onerror=()=>{$('#impMsg').textContent='Could not read that file. Try saving it as CSV or plain text.';$('#impMsg').className='impmsg err';};
  rd.readAsText(f);});
 $('#copyCode').onclick=e=>copyText(encodeBook(),e.target,$('#expMsg'),'Playbook code copied. Paste it into a text or email to your staff.');
-$('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\n'+T.book.map(b=>b[0]+'\t'+CATS[b[1]].label+'\t'+FORMS[b[2]].label).join('\n'),e.target,$('#expMsg'),'Copied as rows. Paste into a spreadsheet, edit, and paste back to import.');
+$('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\tRoutes\n'+T.book.map(b=>b[0]+'\t'+CATS[b[1]].label+'\t'+FORMS[b[2]].label+'\t'+(b[3]||'')).join('\n'),e.target,$('#expMsg'),'Copied as rows. Paste into a spreadsheet, edit, and paste back to import.');
 ['Run','Pro','Qb','Kick','Def'].forEach(k=>{$('#t'+k).addEventListener('input',e=>{T[k.toLowerCase()]=+e.target.value;$('#o'+k).textContent=e.target.value+(k==='Kick'?' yd':'');saveTeam();});});
 $('#tName').addEventListener('input',e=>{T.name=e.target.value||'Your team';saveTeam();});
 $('#tBlitz').addEventListener('change',e=>{T.blitz=e.target.value;saveTeam();});
 $('#tPc').addEventListener('change',e=>{T.pc=+e.target.value;saveTeam();});
-$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles']);saveTeam();renderBook();const i=T.book.length-1;$('#bkN'+i).focus();$('#bkN'+i).select();};
+$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;$('#bkN'+i).focus();$('#bkN'+i).select();};
 $('#resetTeam').onclick=()=>{T=JSON.parse(JSON.stringify(SAMPLE));saveTeam();openTeam();};
 const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P')G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
 $('#closeTeam').onclick=closeSheet;
