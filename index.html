@@ -224,6 +224,13 @@ button{cursor:pointer}
 .prev .q{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--g-cost);text-transform:uppercase}
 .prevhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
 .sheetfoot{display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
+.tipmodal{position:fixed;inset:0;z-index:30;background:rgba(5,10,7,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.tipcard{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;max-width:420px;width:100%;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.tipcard h3{margin:0;font-family:var(--f-display);font-weight:800;font-size:26px;text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
+.tipcard p{margin:0;font-size:15px}
+.tipcard b{font-family:var(--f-mono);font-weight:400}
+.tipfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:14px}
+.tipfoot label{display:flex;gap:6px;align-items:center;color:var(--muted)}
 details.how{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
 details.how summary{font-weight:700;cursor:pointer}
 details.how p,details.how li{max-width:72ch}
@@ -368,6 +375,14 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   </div>
 </div>
 
+<div class="tipmodal" id="routeTip" hidden>
+  <div class="tipcard" role="dialog" aria-modal="true" aria-labelledby="routeTipT">
+    <h3 id="routeTipT">Odds break out. Evens break in.</h3>
+    <p>0 drag · 1 flat · 2 slant · 3 comeback · 4 curl · 5 out · 6 dig · 7 corner · 8 post · 9 go</p>
+    <p>Two digits make a combo: 87 is a post-corner. Write routes by position, like <b>X9 H8 Y0 Z5 R1</b>.</p>
+    <div class="tipfoot"><label><input type="checkbox" id="routeTipOff"> Don't show again</label><button class="btn primary" id="routeTipOk">Got it</button></div>
+  </div>
+</div>
 <div class="sheet" id="sheet" hidden>
   <div class="sheetin" role="dialog" aria-modal="true" aria-labelledby="sheetT">
     <h2 id="sheetT">Team setup</h2>
@@ -377,6 +392,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="fld"><label for="tRun">Run game <output id="oRun"></output></label><input type="range" id="tRun" min="1" max="5" step="1"></div>
       <div class="fld"><label for="tPro">Pass protection <output id="oPro"></output></label><input type="range" id="tPro" min="1" max="5" step="1"></div>
       <div class="fld"><label for="tQb">QB accuracy <output id="oQb"></output></label><input type="range" id="tQb" min="1" max="5" step="1"></div>
+      <div class="fld"><label for="tSkill">Ball carriers <output id="oSkill"></output></label><input type="range" id="tSkill" min="1" max="5" step="1"><span class="help">Your backs and receivers after the catch or first contact. Higher breaks more tackles.</span></div>
       <div class="fld"><label for="tKick">Kicker range <output id="oKick"></output></label><input type="range" id="tKick" min="20" max="50" step="1"><span class="help">The longest kick that's about a coin flip. 20 means no reliable kicker.</span></div>
       <div class="fld"><label for="tDef">Opponent defense <output id="oDef"></output></label><input type="range" id="tDef" min="1" max="5" step="1"></div>
       <div class="fld"><label for="tBlitz">Opponent pressure</label><select id="tBlitz"><option value="low">Rarely blitzes</option><option value="med">Average</option><option value="high">Blitz-heavy</option></select></div>
@@ -395,8 +411,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <p class="impmsg" id="impMsg" role="status"></p>
       <div id="impPrev"></div>
     </div>
-    <div class="bkhead"><h3>Call sheet</h3><button class="btn" id="addPlay">Add play</button></div>
-    <p class="tree">Routes use the tree, numbered from the line of scrimmage: <b>0</b> drag 2 · <b>1</b> flat 2 · <b>2</b> slant 4 · <b>3</b> comeback 10 · <b>4</b> curl 10 · <b>5</b> out 10 · <b>6</b> dig 12 · <b>7</b> corner 12 · <b>8</b> post 12 · <b>9</b> go/fade. Two digits make a combo, like <b>87</b> post-corner or <b>19</b> wheel. Write them by position, like <b>X9 H8 Y0 Z5 R1</b>. Leave a box blank to use the concept's default; the grey text shows it.</p>
+    <div class="bkhead"><h3>Call sheet</h3><div class="improw"><button class="btn" id="treeHelp">Route numbers</button><button class="btn" id="addPlay">Add play</button></div></div>
+    <p class="tree"><b style="font-family:var(--f-body);font-weight:700">Odds break out, evens break in.</b> Depths are from the line of scrimmage: <b>0</b> drag 2 · <b>1</b> flat 2 · <b>2</b> slant 4 · <b>3</b> comeback 10 · <b>4</b> curl 10 · <b>5</b> out 10 · <b>6</b> dig 12 · <b>7</b> corner 12 · <b>8</b> post 12 · <b>9</b> go/fade. Two digits make a combo, like <b>87</b> post-corner or <b>19</b> wheel. Write them by position, like <b>X9 H8 Y0 Z5 R1</b>. Leave a box blank to use the concept's default; the grey text shows it.</p>
     <div id="book"></div>
     <div class="bkhead"><h3>Share with your staff</h3></div>
     <div class="imp">
@@ -420,16 +436,17 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function gauss(r){let u=0;while(u===0)u=r();const v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function pick(w,r){let tot=0;for(const k in w)tot+=w[k];let x=r()*tot;for(const k in w){x-=w[k];if(x<=0)return k;}return Object.keys(w)[0];}
-const realR=mulberry((Math.random()*2**31)|0);
+/* real snaps roll fresh dice from the device's random generator; simulations use seeded rolls */
+const realR=(()=>{const buf=new Uint32Array(64);let i=64;return function(){try{if(i>=64){crypto.getRandomValues(buf);i=0;}return buf[i++]/4294967296;}catch(e){return Math.random();}};})();
 const reduceMotion=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
 
 /* ================= concepts, formations, looks ================= */
 const CATS={
- inside:{label:'Inside run',grp:'run',kind:'run',mean:3.6,sd:3.2,big:.05,fum:.015,oob:.04},
- outside:{label:'Outside run',grp:'run',kind:'run',mean:4.2,sd:5,big:.08,fum:.02,oob:.30},
- draw:{label:'Draw',grp:'run',kind:'run',mean:4.0,sd:4,big:.06,fum:.015,oob:.05},
- sneak:{label:'QB sneak',grp:'run',kind:'run',mean:1.7,sd:1.3,big:0,fum:.01,oob:0},
- rpo:{label:'RPO',grp:'run',kind:'run',mean:4.6,sd:4.5,big:.07,fum:.025,oob:.12},
+ inside:{label:'Inside run',grp:'run',kind:'run',mean:2.3,sd:2.6,big:.05,fum:.015,oob:.04},
+ outside:{label:'Outside run',grp:'run',kind:'run',mean:2.4,sd:3.6,big:.08,fum:.02,oob:.30},
+ draw:{label:'Draw',grp:'run',kind:'run',mean:2.5,sd:3.4,big:.06,fum:.015,oob:.05},
+ sneak:{label:'QB sneak',grp:'run',kind:'run',mean:1.1,sd:1.0,big:0,fum:.01,oob:0},
+ rpo:{label:'RPO',grp:'run',kind:'run',mean:2.6,sd:3.6,big:.07,fum:.025,oob:.12},
  quick:{label:'Quick game',grp:'pass',kind:'pass',comp:.66,mean:6,sd:3.5,min:1,int:.025,sack:.03,oob:.12,big:.04,air:5},
  sideline:{label:'Sideline throw',grp:'pass',kind:'pass',comp:.55,mean:10,sd:4,min:3,int:.035,sack:.05,oob:.65,big:.03,air:10},
  inter:{label:'Intermediate',grp:'pass',kind:'pass',comp:.50,mean:14,sd:5,min:4,int:.04,sack:.07,oob:.2,big:.06,air:13},
@@ -491,7 +508,21 @@ function catchDepth(c,r,slot){
  else d={0:2.5,1:2,2:6,3:8,4:8,5:10,6:12}[L];
  return slot==='R'?Math.max(-1,d-2):d;
 }
-const YAC={0:[3.5,3],1:[3,3],2:[2.5,3],3:[1.5,2],4:[1.5,2],5:[1.5,2],6:[3,3],7:[3,4],8:[4,5],9:[3,5]};
+/* run-after-catch room before the first tackler, by route: [yards, spread] */
+const YAC={0:[1.5,1.5],1:[1,1.5],2:[1,1.5],3:[0,.8],4:[0,.8],5:[0,.8],6:[1,1.5],7:[2,2],8:[2.5,2.5],9:[2,2.5]};
+/* the dice after first contact: fall forward, then roll for broken tackles.
+   High school tackling misses more than college or the NFL, so the base break chance is high
+   and a ball carrier in space can take it the distance. */
+function afterContact(r,open,short,behind,room){
+ const sk=(T.skill??3)-3,dd=T.def-3;
+ let y=(room?Math.max(0,room[0]+room[1]*gauss(r)):0)+(.5+r()*1.8)*(1+.08*sk);
+ if(short)return{y:y*.6,bt:0};
+ if(behind)y*=.5;
+ let p=.22+.05*sk-.035*dd+(open?.04:0),bt=0;
+ while(bt<4&&r()<p){bt++;y+=1.5+(-Math.log(1-r()))*(open?6:4);p*=.6;}
+ if(open&&r()<.022+.012*sk-.008*dd+.02*bt){y+=12-Math.log(1-r())*16;}
+ return{y,bt};
+}
 const ROOB={0:.05,1:.35,2:.05,3:.55,4:.05,5:.7,6:.05,7:.5,8:.05,9:.25};
 /* default routes for each concept type, used when a play has no routes of its own */
 const CONCEPT={
@@ -553,12 +584,13 @@ const LOOKS={
 };
 
 /* ================= team ================= */
-const SAMPLE={name:'Your team',run:3,pro:3,qb:3,kick:35,def:3,blitz:'med',pc:40,
+const SAMPLE={name:'Your team',run:3,pro:3,qb:3,skill:3,kick:35,def:3,blitz:'med',pc:40,
  book:[['Inside Zone','inside','pistol',''],['Power','inside','pro',''],['Jet Sweep','outside','doubles',''],['Zone Read','rpo','pistol',''],['QB Draw','draw','doubles',''],['Sneak','sneak','pro',''],['Slant-Flat','quick','doubles','X2 H1 Y1 Z2'],['Mesh','quick','doubles','X9 H0 Y0 Z9 R1'],['Corner-Out','sideline','doubles','X5 H7 Y7 Z5 R1'],['Comeback-Flat','sideline','trips','X3 H1 Y4 Z3 R0'],['Dagger','inter','doubles','X6 H9 Y0 Z4 R1'],['Drive','inter','trips','X9 H6 Y0 Z9 R1'],['Four Verts','deep','doubles','X9 H9 Y9 Z9 R1'],['Post-Corner','deep','doubles','X8 H9 Y9 Z87 R1'],['Boot','pa','pro','X8 H0 Y1 Z7'],['Bubble Screen','screen','trips',''],['Hail Mary','hail','empty','']]};
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let T=load('csd-team',null)||JSON.parse(JSON.stringify(SAMPLE));
 T.book=T.book.filter(b=>CATS[b[1]]).map(b=>[b[0],b[1],FORMS[b[2]]?b[2]:DEFFORM[b[1]],fmtRoutes(parseRoutes(b[3]||''))]);
+if(T.skill==null)T.skill=3;
 let MODE=load('csd-mode','coach');
 let BEST=load('csd-best',{});
 
@@ -609,11 +641,11 @@ function simPlay(cat,s,look,r,tgt,form,routes){
   let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd),sd=b.sd;
   if(s.ytg<=4&&cat!=='sneak'){mean*=.75;sd*=.7;}
   if(look==='blitz')sd*=1.25;
-  let y=mean+sd*gauss(r);
-  if(r()<b.big*(1+.15*rr)*(look==='box'?.6:1))y+=8-Math.log(1-r())*14;
-  y=Math.round(Math.max(-5,y));
-  if(r()<b.fum){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
-  o.y=y;o.oob=r()<b.oob;o.dur=5+Math.max(0,y)/12;return o;
+  const contact=mean+sd*gauss(r);
+  const ac=afterContact(r,contact>=5,cat==='sneak'||s.ytg<=2,contact<0);
+  let y=Math.round(Math.max(-5,contact+ac.y));
+  if(r()<b.fum*(1+.25*ac.bt)){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
+  o.y=y;o.bt=ac.bt;o.oob=r()<b.oob;o.dur=5+Math.max(0,y)/12;return o;
  }
  if(b.kind==='hail'){
   if(r()<.08*F.sack*(1-.15*pp)){o.type='sack';o.y=-7;o.dur=7;return o;}
@@ -680,11 +712,10 @@ function simRoutePass(cat,s,look,r,tgt,F,routes,o){
  const x=r();
  if(x<intP){o.type='int';o.air=Math.max(3,cy);o.dur=6;return o;}
  if(x<intP+clamp(comp,.08,.92)){
-  const[ym,ys]=YAC[L];
-  let y=cy+(ym+ys*gauss(r))*clamp(m.y,.8,1.25)*(1+.04*qq)*(1-.06*dd);
-  if(r()<(TREE[L].deep?.09:.05))y+=6-Math.log(1-r())*12;
-  y=Math.round(Math.max(cy-1,y));
-  o.type='comp';o.y=y;o.oob=r()<ROOB[L];o.dur=6+Math.max(0,y)/15;return o;
+  const open=TREE[L].deep||'0126'.includes(L);
+  const ac=afterContact(r,open,false,false,YAC[L]);
+  let y=Math.round(Math.max(cy-1,cy+ac.y*clamp(m.y,.85,1.2)));
+  o.type='comp';o.y=y;o.bt=ac.bt;o.oob=r()<ROOB[L];o.dur=6+Math.max(0,y)/15;return o;
  }
  o.type='inc';o.dur=5;return o;
 }
@@ -1006,11 +1037,11 @@ function narrate(name,act,e,sb){
  const tw=o.slot&&o.rc?' to the '+o.slot+' on the '+routeName(o.rc)+' ('+o.rc+')':'';
  if(o.type==='int')return name+': intercepted'+(tw?' going'+tw:'')+'. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(o.type==='fum')return name+': fumble, recovered by the defense.';
- if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards.';
+ if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards'+(o.bt?', '+(o.bt===1?'broke a tackle':'broke '+o.bt+' tackles'):'')+'.';
  let t;
  if(o.type==='sack')t=name+': sacked for a loss of '+(-o.y)+'. Clock running.';
  else if(o.type==='inc')t=name+': incomplete'+tw+'. Clock stops.';
- else{const yd=o.y>=0?o.y+(o.y===1?' yard':' yards'):'a loss of '+(-o.y);t=name+': '+(o.type==='comp'?'complete'+tw+' for ':'run for ')+yd;t+=o.oob?(o.first?', first down and out of bounds. Clock stops.':', out of bounds. Clock stops.'):o.first?'. First down, clock stops for the chains.':'. Clock running.';}
+ else{const yd=o.y>=0?o.y+(o.y===1?' yard':' yards'):'a loss of '+(-o.y);t=name+': '+(o.type==='comp'?'complete'+tw+' for ':'run for ')+yd;if(o.bt)t+=', breaking '+(o.bt===1?'a tackle':o.bt+' tackles');t+=o.oob?(o.first?', first down and out of bounds. Clock stops.':', out of bounds. Clock stops.'):o.first?'. First down, clock stops for the chains.':'. Clock running.';}
  if(e.end==='downs')t+=' Turnover on downs.';
  if(e.end==='time')t+=' That is the end of the '+(sb.obj==='points'?'half.':'game.');
  if(e.end==='safety')t+=' Safety.';
@@ -1202,7 +1233,7 @@ function renderMini(){
 
 /* ================= panels ================= */
 function renderAll(){renderSpots();renderBoard();renderMini();renderFormation();renderFeed();renderDecide();renderLog();
- $('#teamTag').textContent=T.name+' · Run '+T.run+' · Pro '+T.pro+' · QB '+T.qb+' · Kick '+T.kick+' yd';
+ $('#teamTag').textContent=T.name+' · Run '+T.run+' · Pro '+T.pro+' · QB '+T.qb+' · Skill '+T.skill+' · Kick '+T.kick+' yd';
  $('#mPlayer').setAttribute('aria-pressed',MODE==='player');$('#mCoach').setAttribute('aria-pressed',MODE==='coach');}
 function renderSpots(){
  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===curTab));
@@ -1335,7 +1366,7 @@ function renderLog(){
 
 /* ================= team sheet ================= */
 function openTeam(){
- $('#tName').value=T.name;['Run','Pro','Qb','Kick','Def'].forEach(k=>{const key=k.toLowerCase();$('#t'+k).value=T[key];$('#o'+k).textContent=T[key]+(k==='Kick'?' yd':'');});
+ $('#tName').value=T.name;['Run','Pro','Qb','Skill','Kick','Def'].forEach(k=>{const key=k.toLowerCase();$('#t'+k).value=T[key];$('#o'+k).textContent=T[key]+(k==='Kick'?' yd':'');});
  $('#tBlitz').value=T.blitz;$('#tPc').value=String(T.pc);renderBook();renderExport();renderPreview();$('#sheet').hidden=false;$('#tName').focus();
 }
 function renderBook(){
@@ -1378,7 +1409,7 @@ function guessForm(name){const n=' '+name.toLowerCase()+' ';
  return null;}
 function normCat(v){if(!v)return null;const k=v.toLowerCase().replace(/[^a-z]/g,'');if(CATS[k])return k;return CATALIAS[k]||null;}
 function normForm(v){if(!v)return null;const k=v.toLowerCase().replace(/[^a-z0-9]/g,'');if(FORMS[k])return k;const m={proi:'pro',iform:'pro',i:'pro',twobytwo:'doubles','2x2':'doubles',spread:'doubles','3x1':'trips',empty:'empty',fivewide:'empty',gun:'doubles',shotgun:'doubles'};return m[k]||guessForm(v);}
-function encodeBook(){const o={v:1,n:T.name,r:[T.run,T.pro,T.qb,T.kick,T.def],b:T.blitz,p:T.pc,k:T.book};
+function encodeBook(){const o={v:1,n:T.name,r:[T.run,T.pro,T.qb,T.kick,T.def,T.skill],b:T.blitz,p:T.pc,k:T.book};
  return'CSD1:'+btoa(unescape(encodeURIComponent(JSON.stringify(o))));}
 function decodeBook(str){const m=str.trim().match(/CSD1:([A-Za-z0-9+/=\s]+)/);if(!m)return null;
  try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/\s+/g,'')))));
@@ -1439,7 +1470,7 @@ function renderPreview(){
   const rows=IMP.rows.map(r=>[r.name.slice(0,28),r.cat,r.form,r.rs||'']);
   if(replace)T.book=rows;else T.book=T.book.concat(rows).slice(0,100);
   if(IMP.team&&$('#impTeam')&&$('#impTeam').checked){const t=IMP.team;T.name=t.name;
-   if(Array.isArray(t.r)&&t.r.length===5){[T.run,T.pro,T.qb,T.kick,T.def]=t.r.map((v,j)=>clamp(+v||3,j===3?20:1,j===3?50:5));}
+   if(Array.isArray(t.r)&&t.r.length>=5){[T.run,T.pro,T.qb,T.kick,T.def]=t.r.slice(0,5).map((v,j)=>clamp(+v||3,j===3?20:1,j===3?50:5));T.skill=clamp(+t.r[5]||3,1,5);}
    if(['low','med','high'].includes(t.b))T.blitz=t.b;if(t.p==25||t.p==40)T.pc=+t.p;}
   const n=rows.length;IMP=null;$('#impText').value='';saveTeam();openTeam();
   const m=$('#impMsg');m.className='impmsg';m.textContent=(replace?'Call sheet replaced with ':'Added ')+n+' plays.';
@@ -1454,7 +1485,18 @@ function copyText(text,btn,msgEl,done){
  const fallback=()=>{const ta=$('#expCode');ta.value=text;ta.focus();ta.select();msgEl.className='impmsg';msgEl.textContent='Copying is blocked here. The text is selected in the box, so copy it with your keyboard or long-press.';};
  try{navigator.clipboard.writeText(text).then(ok,fallback);}catch(e){fallback();}
 }
-$('#impRead').onclick=()=>readImport($('#impText').value);
+$('#impRead').onclick=()=>{readImport($('#impText').value);if(IMP)routeTip(false,$('#impRead'));};
+/* ---------- route-number reminder ---------- */
+let rtShown=false,rtOff=false,rtReturn=null;try{rtOff=localStorage.getItem('csd-routetip')==='1';}catch(e){}
+function routeTip(force,ret){if(!force&&(rtOff||rtShown))return;rtShown=true;rtReturn=ret||document.activeElement;$('#routeTipOff').checked=rtOff;$('#routeTip').hidden=false;$('#routeTipOk').focus();}
+function closeRouteTip(){$('#routeTip').hidden=true;if($('#routeTipOff').checked){rtOff=true;try{localStorage.setItem('csd-routetip','1');}catch(e){}}if(rtReturn&&document.body.contains(rtReturn))rtReturn.focus();}
+$('#routeTipOk').onclick=closeRouteTip;
+$('#routeTip').addEventListener('click',e=>{if(e.target.id==='routeTip')closeRouteTip();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#routeTip').hidden){e.stopPropagation();closeRouteTip();}},true);
+$('#treeHelp').onclick=()=>routeTip(true,$('#treeHelp'));
+$('#book').addEventListener('focusin',e=>{if(e.target.classList.contains('rin'))routeTip(false,e.target);});
+$('#impPrev').addEventListener('focusin',e=>{if(e.target.classList.contains('rin'))routeTip(false,e.target);});
+
 $('#impFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
  if(f.size>200000){$('#impMsg').textContent='That file is too big for a call sheet. Save it as a CSV with just the play columns.';$('#impMsg').className='impmsg err';return;}
  const rd=new FileReader();rd.onload=()=>{$('#impText').value=String(rd.result);readImport(String(rd.result));e.target.value='';};
@@ -1462,11 +1504,11 @@ $('#impFile').addEventListener('change',e=>{const f=e.target.files&&e.target.fil
  rd.readAsText(f);});
 $('#copyCode').onclick=e=>copyText(encodeBook(),e.target,$('#expMsg'),'Playbook code copied. Paste it into a text or email to your staff.');
 $('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\tRoutes\n'+T.book.map(b=>b[0]+'\t'+CATS[b[1]].label+'\t'+FORMS[b[2]].label+'\t'+(b[3]||'')).join('\n'),e.target,$('#expMsg'),'Copied as rows. Paste into a spreadsheet, edit, and paste back to import.');
-['Run','Pro','Qb','Kick','Def'].forEach(k=>{$('#t'+k).addEventListener('input',e=>{T[k.toLowerCase()]=+e.target.value;$('#o'+k).textContent=e.target.value+(k==='Kick'?' yd':'');saveTeam();});});
+['Run','Pro','Qb','Skill','Kick','Def'].forEach(k=>{$('#t'+k).addEventListener('input',e=>{T[k.toLowerCase()]=+e.target.value;$('#o'+k).textContent=e.target.value+(k==='Kick'?' yd':'');saveTeam();});});
 $('#tName').addEventListener('input',e=>{T.name=e.target.value||'Your team';saveTeam();});
 $('#tBlitz').addEventListener('change',e=>{T.blitz=e.target.value;saveTeam();});
 $('#tPc').addEventListener('change',e=>{T.pc=+e.target.value;saveTeam();});
-$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;$('#bkN'+i).focus();$('#bkN'+i).select();};
+$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;$('#bkN'+i).focus();$('#bkN'+i).select();routeTip(false,$('#bkN'+i));};
 $('#resetTeam').onclick=()=>{T=JSON.parse(JSON.stringify(SAMPLE));saveTeam();openTeam();};
 const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P')G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
 $('#closeTeam').onclick=closeSheet;
