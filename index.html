@@ -224,6 +224,10 @@ details.how summary{font-weight:700;cursor:pointer}
 details.how p,details.how li{max-width:72ch}
 details.how ul{padding-left:20px}
 
+
+/* scoreboard stays in view */
+.scoreband{position:sticky;top:env(safe-area-inset-top,0px);z-index:12;background:var(--bg);box-shadow:0 -12px 0 var(--bg)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:13;background:var(--board)}
 /* ---------- phone layouts ---------- */
 #drivesBtn{display:none}
 .spotshead{display:none}
@@ -237,7 +241,7 @@ details.how ul{padding-left:20px}
   .spotshead{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);font-family:var(--f-display);font-size:20px;text-transform:uppercase}
   .spotshead .btn{font-family:var(--f-body);font-size:14px;text-transform:none}
   #game{display:flex;flex-direction:column}
-  #board{order:1}#sitline{order:2}#game>.fieldbox{order:3}#rotateTip{order:4}#decide{order:5}#feed{order:6}#logpanel{order:7}#game>.how{order:8}
+  #scoreband{order:1}#game>.fieldbox{order:3}#rotateTip{order:4}#decide{order:5}#feed{order:6}#logpanel{order:7}#game>.how{order:8}
 }
 @media (prefers-reduced-motion:reduce){.spots{transition:none}}
 @media (max-width:600px){
@@ -261,12 +265,13 @@ details.how ul{padding-left:20px}
   .topbar .btn,.seg button{padding:5px 11px;font-size:13.5px}
   .ioshint{margin-bottom:8px}
   #game{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);column-gap:14px;row-gap:0;align-items:start;
-    grid-template-areas:"board board" "sit sit" "field decide" "field feed" "field log" "how how"}
-  #board{grid-area:board;padding:6px 14px;grid-template-columns:repeat(5,auto);align-items:center}
+    grid-template-areas:"band band" "field decide" "field feed" "field log" "how how"}
+  #scoreband{grid-area:band}
+  #board{padding:6px 14px;grid-template-columns:repeat(5,auto);align-items:center}
   .cell .k{font-size:10px}.cell .v{font-size:20px}.cell .v.w{font-size:18px}.dots{padding-top:4px}
-  #sitline{grid-area:sit;padding:4px 14px;font-size:12.5px}
-  #game>.fieldbox{grid-area:field;position:sticky;top:env(safe-area-inset-top,0px);border-radius:0 0 10px 10px}
-  .fview svg{max-height:calc(100vh - 150px);width:auto;max-width:100%}
+  #sitline{padding:4px 14px;font-size:12.5px}
+  #game>.fieldbox{grid-area:field;position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--bandH,70px));border-radius:0 0 10px 10px}
+  .fview svg{max-height:calc(100vh - var(--bandH,70px) - 40px);width:auto;max-width:100%}
   .legend{display:none}
   .mini svg{max-height:22px}
   #rotateTip{display:none!important}
@@ -318,8 +323,10 @@ details.how ul{padding-left:20px}
     </aside>
 
     <main id="game" style="min-width:0">
-      <section id="board" class="board" aria-label="Scoreboard"></section>
-      <div id="sitline" class="sitline"></div>
+      <div class="scoreband" id="scoreband">
+        <section id="board" class="board" aria-label="Scoreboard"></section>
+        <div id="sitline" class="sitline"></div>
+      </div>
       <div class="fieldbox">
         <div class="mini" id="mini"></div>
         <div class="fview" id="fview"></div>
@@ -1349,7 +1356,11 @@ $('#rotateClose').onclick=()=>{tipOff=true;try{localStorage.setItem('csd-rotatet
 let rsz=null,lastNarrow=isNarrow();
 addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{layoutTips();if(!drawerMode())closeDrawer();const n=isNarrow();if(n!==lastNarrow){lastNarrow=n;if(G&&G.phase!=='busy')renderFormation();}},150);});
 layoutTips();
-start(SPOTS[0]);
+
+/* keep the field tucked under the pinned scoreboard */
+function syncBand(){const b=$('#scoreband');if(b)document.documentElement.style.setProperty('--bandH',b.offsetHeight+'px');}
+try{new ResizeObserver(syncBand).observe($('#scoreband'));}catch(e){addEventListener('resize',syncBand);}
+start(SPOTS[0]);syncBand();
 })();
 </script>
 
