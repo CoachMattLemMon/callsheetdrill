@@ -113,6 +113,7 @@ button{cursor:pointer}
 .rt{fill:none;stroke:var(--chalk);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;opacity:.9}
 .rt.run{stroke:var(--run);stroke-width:3}
 .rt.dim{opacity:.35}
+.rt.pull{stroke-dasharray:5 4;stroke-width:2;opacity:.8}
 .rt.hot{stroke-width:3.2;opacity:1}
 .ah{fill:var(--chalk)}.ah-run{fill:var(--run)}
 .tg circle{fill:var(--accent);stroke:var(--chalk);stroke-width:2}
@@ -147,6 +148,8 @@ button{cursor:pointer}
 .busy i{width:16px;height:16px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.busy i{animation:none}}
+.usual{margin:-4px 0 12px;font-size:13.5px;color:var(--muted);max-width:75ch}
+.snapres.usual{margin-top:-6px}
 .result{font-size:16px;font-weight:500;margin:0 0 10px}
 .grades{display:grid;gap:12px}
 .grade{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px}
@@ -396,7 +399,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       </section>
       <details class="how">
         <summary>How grading works</summary>
-        <p>Before showing the result, the game plays out the rest of the drive hundreds of times for every option you had and compares your choice with the best one. Green is the best call or within half a point of win chance, yellow is close (within 3), orange is costly (within 8) and red is a big miss. End-of-half spots are graded in expected points. A good call that didn't work is still a good call.</p>
+        <p>Before showing the result, the game plays your call 1,500 times against the coverage the defense showed, rolling the same dice for every option you had. Each result is valued by how likely the drive is to get the points you need from there, given yards to go, down and distance, the clock, timeouts and your team ratings. Green is the best call or close enough that the difference is luck. Yellow is close, orange is costly and red is a big miss. When your chances were small to begin with, a loss counts as a share of what you had. End-of-half spots are graded in expected points. A good call that didn't work is still a good call, and the line under each result shows what that call usually gets against that look.</p>
+        <p>Each pass is decided by who is open. Every route is rated against Cover 0, 1, 2, 3 and 4, and combinations matter: a corner over a flat or curl, three levels to one side, two drags crossing against man, a seam clearing for a dig. Cover 2's squatting underneath defenders punish crossers and slants. Against Cover 0 and Cover 1, routes that take too long end in sacks. Runs depend on how many defenders are in the box and how the coverage fits the run.</p>
         <p><b>Player mode</b> puts you at the line as the QB: the coach's call comes in, you see the shell, and you either run it, check to one of two answers, or spike it. On a pass you then choose where the ball goes. <b>Coach mode</b> gives you the whole call sheet plus every clock and kicking decision.</p>
         <p>Your team setup drives the numbers: run game, protection, QB, kicker range, the opponent's defense and how often they bring pressure. Formations nudge the odds too: Pro I runs a little better, Empty throws a little better but gets the QB hit more.</p>
         <p>High school rules built in:</p>
@@ -507,8 +511,13 @@ const reduceMotion=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)
 
 /* ================= concepts, formations, looks ================= */
 const CATS={
- inside:{label:'Inside run',grp:'run',kind:'run',mean:2.3,sd:2.6,big:.05,fum:.015,oob:.04},
- outside:{label:'Outside run',grp:'run',kind:'run',mean:2.4,sd:3.6,big:.08,fum:.02,oob:.30},
+ inside:{label:'Inside zone',grp:'run',kind:'run',mean:2.3,sd:2.6,big:.05,fum:.015,oob:.04},
+ outside:{label:'Outside zone',grp:'run',kind:'run',mean:2.4,sd:3.6,big:.08,fum:.02,oob:.30},
+ power:{label:'Power',grp:'run',kind:'run',mean:2.5,sd:2.8,big:.05,fum:.015,oob:.06},
+ counter:{label:'Counter',grp:'run',kind:'run',mean:2.4,sd:3.6,big:.07,fum:.02,oob:.08},
+ toss:{label:'Toss',grp:'run',kind:'run',mean:2.2,sd:4.6,big:.09,fum:.025,oob:.35},
+ trap:{label:'Trap',grp:'run',kind:'run',mean:2.4,sd:2.6,big:.05,fum:.015,oob:.03},
+ option:{label:'Option',grp:'run',kind:'run',mean:2.6,sd:4.4,big:.09,fum:.035,oob:.25},
  draw:{label:'Draw',grp:'run',kind:'run',mean:2.5,sd:3.4,big:.06,fum:.015,oob:.05},
  sneak:{label:'QB sneak',grp:'run',kind:'run',mean:1.1,sd:1.0,big:0,fum:.01,oob:0},
  rpo:{label:'RPO',grp:'run',kind:'run',mean:2.6,sd:3.6,big:.07,fum:.025,oob:.12},
@@ -535,7 +544,7 @@ const FORMS={
   FORMS[k]={...f,label:f.label+' Rt',pos:{...f.pos,_f:1}};
   const m={};for(const s in f.pos)m[s]=[-f.pos[s][0],f.pos[s][1]];m._f=-1;
   FORMS[k+'L']={...f,label:f.label+' Lt',pos:m};}})();
-const DEFFORM={inside:'pistol',outside:'doubles',draw:'doubles',sneak:'pro',rpo:'pistol',quick:'doubles',sideline:'doubles',inter:'doubles',deep:'doubles',pa:'pro',screen:'trips',hail:'empty'};
+const DEFFORM={power:'pro',counter:'pistol',toss:'pro',trap:'pro',option:'pistol',inside:'pistol',outside:'doubles',draw:'doubles',sneak:'pro',rpo:'pistol',quick:'doubles',sideline:'doubles',inter:'doubles',deep:'doubles',pa:'pro',screen:'trips',hail:'empty'};
 /* ---------- route tree: depths in yards from the line of scrimmage ---------- */
 /* v = the branch after the break, as [out, up]; out = toward that receiver's sideline */
 const TREE={
@@ -589,12 +598,12 @@ const YAC={0:[1.5,1.5],1:[1,1.5],2:[1,1.5],3:[0,.8],4:[0,.8],5:[0,.8],6:[1,1.5],
 /* the dice after first contact: fall forward, then roll for broken tackles.
    High school tackling misses more than college or the NFL, so the base break chance is high
    and a ball carrier in space can take it the distance. */
-function afterContact(r,open,short,behind,room){
+function afterContact(r,open,short,behind,room,adj){
  const sk=(T.skill??3)-3,dd=T.def-3;
  let y=(room?Math.max(0,room[0]+room[1]*gauss(r)):0)+(.5+r()*1.8)*(1+.08*sk);
  if(short)return{y:y*.6,bt:0};
  if(behind)y*=.5;
- let p=.22+.05*sk-.035*dd+(open?.04:0),bt=0;
+ let p=.22+.05*sk-.035*dd+(open?.04:0)+(adj||0),bt=0;
  while(bt<4&&r()<p){bt++;y+=1.5+(-Math.log(1-r()))*(open?6:4);p*=.6;}
  if(open&&r()<.022+.012*sk-.008*dd+.02*bt){y+=12-Math.log(1-r())*16;}
  return{y,bt};
@@ -609,7 +618,7 @@ const CONCEPT={
  pa:{X:'8',H:'0',Y:'1',Z:'7',R:'P'},
  hail:{X:'9',H:'9',Y:'9',Z:'9',R:'P'},
  screen:{X:'S',Y:'S',Z:'S'},
- inside:{X:'S',H:'S',Y:'S',Z:'S'},outside:{X:'S',H:'S',Y:'S',Z:'S'},draw:{X:'S',H:'S',Y:'S',Z:'S'},rpo:{X:'S',Z:'S'},sneak:{}
+ inside:{X:'S',H:'S',Y:'S',Z:'S'},outside:{X:'S',H:'S',Y:'S',Z:'S'},power:{X:'S',H:'S',Y:'S',Z:'S'},counter:{X:'S',H:'S',Y:'S',Z:'S'},toss:{X:'S',H:'S',Y:'S',Z:'S'},trap:{X:'S',H:'S',Y:'S',Z:'S'},option:{X:'S',H:'S',Y:'S',Z:'S'},draw:{X:'S',H:'S',Y:'S',Z:'S'},rpo:{X:'S',Z:'S'},sneak:{}
 };
 /* pieces outside the tree: run paths (absolute [x, up] from the ball), the screen, QB actions, RPO tags */
 const ROUTES={
@@ -617,6 +626,11 @@ const ROUTES={
  screen:{H:[[2,-1],[6,-1.5]]},
  inside:{run:{who:'R',pts:[[.5,-2],[-1,1],[-1,7]]}},
  outside:{run:{who:'R',pts:[[5,-4],[12,-1],[14,5]]}},
+ power:{run:{who:'R',pts:[[1.5,-3.5],[3.2,-1.2],[3.6,1],[4,7]]},pull:[[[-2,-1],[1,-2],[3.4,-.6],[3.8,1.6]]]},
+ counter:{run:{who:'R',pts:[[-.8,-5.4],[1.5,-3.6],[3.4,-1.2],[3.8,1],[4.2,7]]},pull:[[[-2,-1],[1,-2.2],[4.2,-1],[4.6,.8]],[[-4,-1],[-1,-2.6],[3.2,-1.4],[3.4,1.8]]]},
+ toss:{run:{who:'R',pts:[[6,-4.6],[11.5,-3],[15,0],[16,6]]},pull:[[[2,-1],[6,-2],[11,-.6]]]},
+ trap:{run:{who:'R',pts:[[.6,-2.6],[.8,1],[.8,6]]},pull:[[[-2,-1],[0,-1.8],[2.6,-.2]]]},
+ option:{run:{who:'Q',pts:[[2.5,-.8],[6,-.6],[8.5,1.8],[9.5,7]]},R:[[4,1],[8,1.5]]},
  draw:{Q:[[0,-2]],run:{who:'R',pts:[[1,-3],[0,1],[0,7]]}},
  sneak:{run:{who:'Q',pts:[[0,1.8]]}},
  rpo:{H:[[2,-1],[6,-1]],Y:[[0,4],[-1,4]],run:{who:'R',pts:[[-1,-3],[-1,1],[-1,6]]}}
@@ -659,23 +673,31 @@ function targetsFor(routes){
 }
 const TGINFO={side:{n:1},mid:{n:2},check:{n:3}};
 const TGMOD={side:{c:0,i:1},mid:{c:-.02,i:1.15},check:{c:.05,i:.6}};
+/* [run yards mult, comp adj, sack mult, int mult, spread mult] by coverage. Pass entries are a rough fit used by the auto play-caller. */
 const M={
- box:{inside:[.62],outside:[.85],draw:[.7],sneak:[.9],rpo:[1.15],quick:[1.15,.05],sideline:[1.05,.02],inter:[1.1,.03],deep:[1.3,.08,1,.9],pa:[1.35,.08],screen:[1]},
- two:{inside:[1.25],outside:[1.1],draw:[1.3],sneak:[1.05],rpo:[1.15],quick:[.95,.05],sideline:[.8,-.08],inter:[.95,0],deep:[.6,-.12,1,1.6],pa:[.85,-.03],screen:[1.1,.03]},
- c3:{inside:[1],outside:[1],draw:[1],sneak:[1],rpo:[1.05],quick:[1.05,.02],sideline:[1.05,.02],inter:[1.05,.02],deep:[.95,0],pa:[1.05,.02],screen:[1]},
- blitz:{inside:[.9],outside:[.95],draw:[1.35],sneak:[1],rpo:[1],quick:[1.1,-.02,1.2],sideline:[1,-.04,1.4],inter:[.9,-.06,2],deep:[1.25,.04,2.1],pa:[.85,-.02,1.8],screen:[1.5,.05,.5]}
+ c0:{inside:[.5,0,1,1,1.2],outside:[.8,0,1,1,1.4],power:[.6,0,1,1,1.2],counter:[1.05,0,1,1,1.4],toss:[1,0,1,1,1.5],trap:[1.25,0,1,1,1.3],option:[1.1,0,1,1,1.45],draw:[1.3,0,1,1,1.3],sneak:[.85],rpo:[.8,0,1,1,1.3],
+  quick:[1.3],sideline:[.7],inter:[.7],deep:[.6],pa:[.6],screen:[1.5,.05,.5]},
+ c1:{inside:[.7,0,1,1,1.1],outside:[.9,0,1,1,1.2],power:[.8],counter:[.95],toss:[1,0,1,1,1.2],trap:[1.05],option:[1.15,0,1,1,1.2],draw:[1.1],sneak:[.95],rpo:[1.1],
+  quick:[1.2],sideline:[.9],inter:[.9],deep:[.7],pa:[.9],screen:[1.2,.03,.8]},
+ c2:{inside:[1.2],outside:[.85],power:[1.1],counter:[1.1],toss:[.75],trap:[1.1],option:[.95],draw:[1.25],sneak:[1.05],rpo:[1.1],
+  quick:[.75],sideline:[1],inter:[1.1],deep:[1.05],pa:[1],screen:[.65,-.1]},
+ c3:{inside:[1],outside:[1.05],power:[1.05],counter:[1],toss:[1.05],trap:[1],option:[1],draw:[.95],sneak:[1],rpo:[1.1],
+  quick:[1.15],sideline:[1.15],inter:[1.15],deep:[1.15],pa:[1.15],screen:[1]},
+ c4:{inside:[.95],outside:[1.15],power:[.9],counter:[1.15],toss:[1.15],trap:[.95],option:[.9],draw:[1.15],sneak:[1],rpo:[1.05],
+  quick:[1],sideline:[.9],inter:[1.15],deep:[.8],pa:[.95],screen:[1.15,.03]}
 };
-function mt(look,cat){const a=(M[look]&&M[look][cat])||[1];return{y:a[0]??1,c:a[1]??0,s:a[2]??1,i:a[3]??1};}
+function mt(look,cat){const a=(M[look]&&M[look][cat])||[1];return{y:a[0]??1,c:a[1]??0,s:a[2]??1,i:a[3]??1,sd:a[4]??1};}
 const LOOKS={
- box:{label:'Loaded box, 8+',tip:'Eight or more in the box. Run lanes are crowded, so play action and the quick game get the advantage.'},
- two:{label:'Two-high shell',tip:'Two safeties deep. They are taking away shots and squatting on the sideline, so runs, draws and the middle of the field are open.'},
- c3:{label:'Single-high, Cover 3',tip:'Single-high with three deep. Seams and curl-flat stress it, and nothing is taken away for free.'},
- blitz:{label:'Cover 1 pressure',tip:'Pressure with man coverage behind it. Hot throws, check-downs, screens and draws punish it, while deep drops get the QB hit.'}
+ c0:{label:'Cover 0 blitz',tip:'Cover 0: everyone is coming and nobody is deep. Throw hot and quick: drags, slants, flats and screens. Anything that takes time ends in a sack. Trap, draw and counter punish the rush.'},
+ c1:{label:'Cover 1 man',tip:'Cover 1: man underneath, one deep safety and a five-man rush. Mesh, crossers and slants beat man. Deep routes take too long. Man defenders also struggle to play the option.'},
+ c2:{label:'Cover 2',tip:'Cover 2: the corners squat the flats and five defenders sit underneath, so crossers, mesh and slants get picked or blown up. Attack the hole behind the corner (smash), the seams and digs in the middle. With six in the box, run inside, not outside.'},
+ c3:{label:'Cover 3',tip:'Cover 3: three deep, four underneath. Curl-flat, smash, flood and four verts all stress it, and the corners bail, so comebacks are there.'},
+ c4:{label:'Cover 4 quarters',tip:'Cover 4: four deep and the safeties fit the run fast. The flat and the dig under the safeties are open. Deep balls are not, unless a double move makes a safety bite. Outside runs and counter hit the edge.'}
 };
 
 /* ================= team ================= */
 const SAMPLE={name:'Your team',run:3,pro:3,qb:3,skill:3,kick:35,def:3,blitz:'med',pc:40,
- book:[['Inside Zone','inside','pistol',''],['Power','inside','pro',''],['Jet Sweep','outside','doubles',''],['Zone Read','rpo','pistol',''],['QB Draw','draw','doubles',''],['Sneak','sneak','pro',''],['Slant-Flat','quick','doubles','X2 H1 Y1 Z2'],['Mesh','quick','doubles','X9 H0 Y0 Z9 R1'],['Corner-Out','sideline','doubles','X5 H7 Y7 Z5 R1'],['Comeback-Flat','sideline','trips','X3 H1 Y4 Z3 R0'],['Dagger','inter','doubles','X6 H9 Y0 Z4 R1'],['Drive','inter','trips','X9 H6 Y0 Z9 R1'],['Four Verts','deep','doubles','X9 H9 Y9 Z9 R1'],['Post-Corner','deep','doubles','X8 H9 Y9 Z87 R1'],['Boot','pa','pro','X8 H0 Y1 Z7'],['Bubble Screen','screen','trips',''],['Hail Mary','hail','empty','']]};
+ book:[['Inside Zone','inside','pistol',''],['Outside Zone','outside','pistol',''],['Power','power','pro',''],['Counter','counter','pistol',''],['Toss','toss','pro',''],['Trap','trap','pro',''],['Option','option','pistol',''],['Zone Read','rpo','pistol',''],['QB Draw','draw','doubles',''],['Sneak','sneak','pro',''],['Slant-Flat','quick','doubles','X2 H1 Y1 Z2'],['Mesh','quick','doubles','X9 H0 Y0 Z9 R1'],['Corner-Out','sideline','doubles','X5 H7 Y7 Z5 R1'],['Comeback-Flat','sideline','trips','X3 H1 Y4 Z3 R0'],['Dagger','inter','doubles','X6 H9 Y0 Z4 R1'],['Drive','inter','trips','X9 H6 Y0 Z9 R1'],['Four Verts','deep','doubles','X9 H9 Y9 Z9 R1'],['Post-Corner','deep','doubles','X8 H9 Y9 Z87 R1'],['Boot','pa','pro','X8 H0 Y1 Z7'],['Bubble Screen','screen','trips',''],['Hail Mary','hail','empty','']]};
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let T=load('csd-team',null)||JSON.parse(JSON.stringify(SAMPLE));
@@ -717,12 +739,11 @@ function randomSpot(cat){
 function fgProb(dist,R){return clamp(.96/(1+Math.exp((dist-R)/3.2)),0,.96);}
 function lookW(s){
  const bm={low:.55,med:1,high:1.7}[T.blitz]||1;let w;
- if(s.ytg<=3||s.dist<=1)w={box:.6,blitz:.28,c3:.12,two:0};
- else if(s.ytg<=20)w={box:.25,blitz:.3,c3:.35,two:.1};
- else if(s.dist>=7)w={two:.45,c3:.3,blitz:.25,box:0};
- else if(s.t<=120&&s.obj==='win'&&s.margin<0)w={two:.4,c3:.35,blitz:.2,box:.05};
- else w={c3:.4,box:.25,two:.15,blitz:.2};
- w.blitz*=bm;return w;
+ if(s.ytg<=3||s.dist<=1)w={c0:.35,c1:.4,c3:.2,c2:.03,c4:.02};
+ else if(s.ytg<=20)w={c0:.15,c1:.3,c3:.25,c2:.15,c4:.15};
+ else if(s.dist>=7||(s.t<=120&&s.obj==='win'&&s.margin<0))w={c0:.06,c1:.12,c2:.3,c3:.27,c4:.25};
+ else w={c0:.1,c1:.2,c2:.2,c3:.3,c4:.2};
+ w.c0*=bm;w.c1*=Math.sqrt(bm);return w;
 }
 function simPlay(cat,s,look,r,tgt,form,routes){
  const b=CATS[cat],m=mt(look,cat),F=FORMS[form]||FORMS.doubles,rr=T.run-3,pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
@@ -730,9 +751,9 @@ function simPlay(cat,s,look,r,tgt,form,routes){
  if(b.kind==='run'){
   let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd),sd=b.sd;
   if(s.ytg<=4&&cat!=='sneak'){mean*=.75;sd*=.7;}
-  if(look==='blitz')sd*=1.25;
+  sd*=m.sd;
   const contact=mean+sd*gauss(r);
-  const ac=afterContact(r,contact>=5,cat==='sneak'||s.ytg<=2,contact<0);
+  const ac=afterContact(r,contact>=5,cat==='sneak'||s.ytg<=2,contact<0,null,{c0:-.08,c1:-.045,c2:.03}[look]||0);
   let y=Math.round(Math.max(-5,contact+ac.y));
   if(r()<b.fum*(1+.25*ac.bt)){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
   o.y=y;o.bt=ac.bt;o.oob=r()<b.oob;o.dur=5+Math.max(0,y)/12;return o;
@@ -751,14 +772,6 @@ function simPlay(cat,s,look,r,tgt,form,routes){
  if(s.ytg<=20&&(cat==='deep'||cat==='pa'||cat==='inter'))comp-=.06;
  if(s.ytg<=12&&cat==='deep')comp-=.04;
  let intP=b.int*m.i*(1-.15*qq),yMult=m.y*F.pass,oob=b.oob,check=false;
- if(tgt&&TGMOD[tgt]){
-  const g=TGMOD[tgt];comp+=g.c;intP*=g.i;oob=g.oob;
-  if(tgt==='check')check=true;else yMult*=g.y;
-  if(look==='two'){if(tgt==='side')comp-=.06;if(tgt==='mid')comp+=.04;}
-  if(look==='blitz'){if(tgt==='check')comp+=.05;if(tgt==='mid')intP*=1.3;}
-  if(look==='box'&&tgt==='mid')comp+=.05;
-  if(look==='c3'&&tgt==='side')comp+=.02;
- }
  const x=r();
  if(x<intP){o.type='int';o.air=check?3:b.air;o.dur=6;return o;}
  if(x<intP+clamp(comp,.05,.95)){
@@ -769,42 +782,91 @@ function simPlay(cat,s,look,r,tgt,form,routes){
  }
  o.type='inc';o.dur=5;return o;
 }
-function pickTarget(s,look,tg,r){
- const w={};if(tg.side)w.side=.33;if(tg.mid)w.mid=.37;if(tg.check)w.check=.3;
- if(look==='two'){if(w.mid)w.mid*=1.5;if(w.side)w.side*=.6;}
- if(look==='blitz'){if(w.check)w.check*=1.6;if(w.mid)w.mid*=.7;}
- if(look==='box'&&w.mid)w.mid*=1.3;
- if(look==='c3'&&w.side)w.side*=1.2;
- if(s.obj==='win'&&s.margin<0&&s.TO===0&&s.t<=60&&w.side)w.side*=1.6;
- return pick(w,r);
+/* ---------- coverage read: who is open against this coverage ---------- */
+/* base openness by route number vs coverage: [outside receiver, inside receiver] */
+const COV={
+ c0:{0:[.75,.75],1:[.7,.72],2:[.75,.75],3:[.45,.45],4:[.45,.45],5:[.45,.45],6:[.4,.42],7:[.45,.45],8:[.5,.5],9:[.45,.45]},
+ c1:{0:[.7,.72],1:[.6,.62],2:[.65,.62],3:[.52,.48],4:[.45,.45],5:[.5,.48],6:[.55,.58],7:[.45,.45],8:[.35,.35],9:[.4,.38]},
+ c2:{0:[.3,.3],1:[.28,.4],2:[.3,.32],3:[.45,.45],4:[.5,.55],5:[.38,.45],6:[.58,.6],7:[.45,.62],8:[.38,.4],9:[.3,.5]},
+ c3:{0:[.6,.6],1:[.62,.66],2:[.62,.58],3:[.7,.62],4:[.66,.62],5:[.6,.58],6:[.6,.62],7:[.5,.6],8:[.4,.42],9:[.32,.55]},
+ c4:{0:[.5,.5],1:[.64,.62],2:[.4,.42],3:[.6,.55],4:[.65,.6],5:[.45,.45],6:[.66,.66],7:[.38,.38],8:[.38,.38],9:[.28,.3]}
+};
+/* squatting defenders: extra interception risk by route vs coverage. High school DBs rarely jump routes otherwise. */
+const INTR={c0:{},c1:{8:.02,9:.015},c2:{0:.05,1:.035,2:.04,5:.035},c3:{8:.02,9:.015},c4:{2:.025,5:.02,9:.015}};
+const TIMEQ={0:1.8,1:1.6,2:1.4,3:2.5,4:2.4,5:2.4,6:2.7,7:2.9,8:2.9,9:2.8};
+const PRESS={c0:.36,c1:.16,c2:.05,c3:.06,c4:.05};
+const ROOMK={c0:1.4,c1:1.15,c2:.6,c3:1,c4:.9};
+const DMOVE={c0:0,c1:0,c2:.05,c3:.1,c4:.2};
+function readCoverage(routes,P,look,s){
+ const out={},by={L:[],R:[]};
+ for(const k of SLOTS){const c=routes[k];if(!isRoute(c)||!P[k])continue;const x=P[k][0],L=c[c.length-1];
+  const ins=k==='R'||Math.abs(x)<14,base=COV[look][L][ins?1:0];
+  let open=base+(k==='R'?.08:0)+(c.length===2?DMOVE[look]:0);
+  let time=TIMEQ[L]+(k==='R'?.2:0)+(c.length===2?.8:0);
+  if(s.ytg<=12&&TREE[L].deep)open-=.08;
+  out[k]={k,c,L,ins,open,time,int:(INTR[look][L]||0)+.006,hit:false};
+  (x<0||(x===0&&(P._f||1)<0)?by.L:by.R).push(k);}
+ const B=(k,v)=>{if(out[k])out[k].open+=v;},I=(k,v)=>{if(out[k])out[k].int+=v;};
+ for(const side of[by.L,by.R]){
+  const has=d=>side.filter(k=>out[k].L===d);
+  const corners=has('7'),unders=side.filter(k=>'1430'.includes(out[k].L)),flats=has('1');
+  if(corners.length&&unders.length){/* smash / hi-lo on the corner */
+   const cb={c2:[.15,.05],c3:[.15,.1],c4:[-.1,0]}[look];if(cb){corners.forEach(k=>B(k,cb[0]));unders.forEach(k=>B(k,cb[1]));}}
+  const deep=side.filter(k=>'97'.includes(out[k].L)),mid=side.filter(k=>'573'.includes(out[k].L));
+  if(deep.length&&flats.length&&mid.some(k=>!deep.includes(k))){/* flood: three levels */
+   const fb={c3:[.15,.1],c2:[.05,0],c1:[0,.08]}[look];if(fb){mid.forEach(k=>B(k,fb[0]));flats.forEach(k=>B(k,fb[1]));}}
+  const curls=side.filter(k=>'43'.includes(out[k].L));
+  if(curls.length&&flats.length){/* curl-flat */
+   if(look==='c3'){curls.forEach(k=>B(k,.15));flats.forEach(k=>B(k,.15));}
+   if(look==='c2')flats.forEach(k=>B(k,-.05));if(look==='c4')curls.forEach(k=>B(k,.05));}
+  const slants=has('2');
+  if(slants.length&&flats.length){/* slant-flat */
+   const sb={c3:[.12,.12],c0:[.1,.1],c1:[.05,.05],c2:[-.1,-.1],c4:[-.05,.08]}[look];slants.forEach(k=>B(k,sb[0]));flats.forEach(k=>B(k,sb[1]));
+   if(look==='c2'){slants.forEach(k=>I(k,.02));flats.forEach(k=>I(k,.01));}}
+  const digs=has('6'),seams=side.filter(k=>out[k].L==='9'&&out[k].ins);
+  if(digs.length&&seams.length){/* dagger */const v={c3:.15,c4:.15,c2:.1}[look]||0;digs.forEach(k=>B(k,v));}
+ }
+ const nines=Object.values(out).filter(o=>o.L==='9');
+ if(nines.length>=3){/* four verts */nines.forEach(o=>{if(look==='c3'&&o.ins)o.open+=.2;if(look==='c2'&&o.ins)o.open+=.05;if(look==='c4')o.open-=.08;});}
+ const drags=Object.values(out).filter(o=>o.L==='0');
+ if(drags.length>=2){/* mesh */drags.forEach(o=>{if(look==='c0'||look==='c1')o.open+=.15;if(look==='c3')o.open+=.05;if(look==='c2'){o.open-=.1;o.int+=.03;}});}
+ if(look==='c2')Object.values(out).forEach(o=>{if(o.L==='0'||o.L==='2')o.hit=true;});
+ Object.values(out).forEach(o=>o.open=clamp(o.open,.05,.95));
+ return out;
 }
-/* a pass to one receiver on his route: depth comes from the route tree */
+/* the QB's read: the most open man he sees, weighed against how long the route takes */
+function qbRead(rd,look,s,r){
+ const qq=T.qb-3,tp={c0:.12,c1:.05}[look]||.02;let best=null,bv=-9;
+ const late=s.obj==='win'&&s.margin<0&&s.TO===0&&s.t<=60;
+ for(const k in rd){const o=rd[k];let v=o.open+gauss(r)*.16*(1-.15*qq)-tp*Math.max(0,o.time-1.5)-o.int*2;
+  if(late&&TREE[o.L].side==='out')v+=.06;if(v>bv){bv=v;best=k;}}
+ return best;
+}
+/* a pass to one receiver on his route: depth from the route tree, odds from the coverage read */
 function simRoutePass(cat,s,look,r,tgt,F,routes,o){
- const b=CATS[cat],m=mt(look,cat),pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
- const tg=targetsFor(routes);
- let key=(tgt&&tgt!=='auto'&&tg[tgt])?tgt:pickTarget(s,look,tg,r);
- const slot=tg[key];
- if(!slot){o.type='inc';o.dur=5;return o;}
- const rc=routes[slot],L=rc[rc.length-1];
+ const pp=T.pro-3,qq=T.qb-3,dd=T.def-3,P=F.pos;
+ const tg=targetsFor(routes),rd=readCoverage(routes,P,look,s);
+ let key=(tgt&&tgt!=='auto'&&tg[tgt])?tgt:null;
+ let slot=key?tg[key]:qbRead(rd,look,s,r);
+ if(!slot||!rd[slot]){o.type='inc';o.dur=5;return o;}
+ if(!key)key=Object.keys(tg).find(k=>tg[k]===slot)||'auto';
+ const q=rd[slot],rc=q.c,L=q.L;
  o.tgt=key;o.slot=slot;o.rc=rc;
- const md=catchMean(rc,slot);
- const sackP=b.sack*m.s*F.sack*(1-.17*pp)*(1+.1*dd)*(md<=4?.5:md<=8?.8:md>=15?1.15:1);
+ const sackP=PRESS[look]*clamp((q.time-1.2)/1.4,0,1.7)*F.sack*(1-.17*pp)*(1+.1*dd)*(routes.R==='P'?.8:1);
  if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
  let cy=Math.min(catchDepth(rc,r,slot),s.ytg+8);o.cy=cy;
- let comp=.6+(cy<=4?.1:cy<=8?.04:cy<=12?-.04:-.22)+m.c+.05*qq-.03*dd+(F.pass-1)*.5;
- let intP=.03*(cy>=15?1.6:cy<=4?.6:1)*m.i*(1-.15*qq);
- const cl=routeClass(rc,slot),g=CLASSMOD[cl];comp+=g.c;intP*=g.i;
- if(look==='two'){if(cl==='out')comp-=.06;if(cl==='in')comp+=.04;if(cl==='deep')comp-=.05;}
- if(look==='blitz'){if(cl==='check')comp+=.05;if(cl==='in')intP*=1.3;if(cl==='deep')comp+=.03;}
- if(look==='box'&&cl==='in')comp+=.05;
- if(look==='c3'&&cl==='out')comp+=.02;
- if(s.ytg<=20&&cy>=s.ytg)comp-=.05;
+ const hurry=(look==='c0'||look==='c1')?Math.max(0,q.time-2.2)*(look==='c0'?.12:.06):0;
+ let comp=clamp(.16+.74*q.open+.05*qq-.03*dd+(F.pass-1)*.5-hurry-(s.ytg<=20&&cy>=s.ytg?.05:0),.06,.93);
+ const intP=(q.int+Math.max(0,.4-q.open)*.05)*(1-.15*qq);
  const x=r();
  if(x<intP){o.type='int';o.air=Math.max(3,cy);o.dur=6;return o;}
- if(x<intP+clamp(comp,.08,.92)){
-  const open=TREE[L].deep||'0126'.includes(L);
-  const ac=afterContact(r,open,false,false,YAC[L]);
-  let y=Math.round(Math.max(cy-1,cy+ac.y*clamp(m.y,.85,1.2)));
+ if(x<intP+comp){
+  if(q.hit&&r()<.5){o.hit=true;if(r()<.05){o.type='fum';o.y=clamp(Math.round(cy),0,s.ytg-1);o.dur=6;return o;}
+   o.type='comp';o.y=Math.round(cy);o.dur=6;return o;}
+  const open=TREE[L].deep||('0126'.includes(L)&&look!=='c2');
+  const room=[YAC[L][0]*ROOMK[look],YAC[L][1]];
+  const ac=afterContact(r,open,false,false,room,{c0:.03,c2:-.03}[look]||0);
+  const y=Math.round(Math.max(cy-1,cy+ac.y));
   o.type='comp';o.y=y;o.bt=ac.bt;o.oob=r()<ROOB[L];o.dur=6+Math.max(0,y)/15;return o;
  }
  o.type='inc';o.dur=5;return o;
@@ -932,8 +994,9 @@ function polB(s){
  return'milk';
 }
 /* first = {pre, action, look, tgt, form}; afterwards the default coach takes over */
-function rollout(s0,r,first){
- const s={...s0};let fs=null,phase='B';
+/* every option gets the same dice for the same later snap, so the comparison measures the call, not the luck of the rest of the drive */
+function rollout(s0,seed,first){
+ const s={...s0};let fs=null,phase='B',r=mulberry(seed),j=0;
  if(first.pre){const e=applyB(s,first.pre);if(e)return{v:terminal(e,s),fs:0};phase='A';}
  if(first.action){
   const e=execA(s,first.action,first.look,r,first.tgt,first.form,first.routes);
@@ -943,6 +1006,7 @@ function rollout(s0,r,first){
  }
  for(let i=0;i<70;i++){
   if(phase==='B'){const e=applyB(s,polB(s));if(e)return{v:terminal(e,s),fs};phase='A';continue;}
+  r=mulberry(seed+(++j)*104729);
   const look=pick(lookW(s),r);
   const e=execA(s,polA(s,r,look),look,r,'auto','doubles');
   if(e.end)return{v:terminal(e,s),fs};
@@ -950,15 +1014,57 @@ function rollout(s0,r,first){
  }
  return{v:terminal({end:'time'},s),fs};
 }
+/* ---------- grading: value the situation each call leaves you in ----------
+   Each option's first snap is played 1,500 times with the same dice for every option. Every result is then valued with
+   a drive model: how likely this drive scores from here, given yards to go, down and distance, the clock, timeouts and
+   your team ratings. That keeps grades about the call, not the luck of the rest of the drive. */
+const EVAL_N=1500;
+function driveValue(s){
+ if(s.t<=0)return terminal({end:'time'},s);
+ const off=clamp(1+.06*(T.run-3)+.06*(T.qb-3)+.04*(T.pro-3)+.03*((T.skill??3)-3)-.08*(T.def-3),.6,1.5);
+ const ypp=6*off,pS=clamp(.75*Math.pow(off,.8),.5,.92);
+ const dl=Math.max(1,5-s.down),q=clamp(.74-.045*s.dist-(s.ytg<=10?.08:0),.18,.74),pCur=1-Math.pow(1-q,dl);
+ const reach=y=>{/* chance to move from here to y yards out */
+  if(s.ytg<=y)return 1;const rem=Math.max(0,s.ytg-y-s.dist);return(s.ytg-y<=s.dist?pCur*.92:pCur*Math.pow(pS,rem/14));};
+ const trailingLate=s.obj==='points'||(s.margin<=0&&s.t<=240);
+ const secPer=trailingLate?10:30,tAvail=s.t+(trailingLate?11*s.TO:0)-(s.status==='running'?runoff('running','hurry'):s.status==='ready'?runoff('ready','hurry'):0);
+ const pTime=y=>{const need=Math.max(0,(s.ytg-y)/ypp)*secPer;return 1/(1+Math.exp(-(tAvail-need)/(6+.2*need)));};
+ const fgY=Math.max(1,Math.min(s.ytg,T.kick-17+2));
+ let pTD=reach(0)*pTime(0),pFGr=fgY<s.ytg||s.ytg<=T.kick-15?reach(fgY)*pTime(fgY):0;
+ const pFG=Math.max(0,pFGr-pTD)*fgProb(Math.min(s.ytg,fgY)+17,T.kick);
+ const used=Math.min(s.t,Math.max(5,(s.ytg/ypp)*secPer*.8));
+ if(s.obj==='points'){const opp=s.t>40?.5:0;return pTD*6.9+pFG*3-(1-pTD-pFG)*opp*(s.ytg>70?1.4:.6);}
+ const tl=Math.max(0,s.t-used),m=s.margin;
+ const pat=fgProb(20,T.kick),wTD=Math.max(pat*V(m+7,tl,.85)+(1-pat)*V(m+6,tl,.85),.45*V(m+8,tl,.85)+.55*V(m+6,tl,.85));
+ const wFG=V(m+3,tl,.85),wNo=V(m,tl,fFrom(Math.max(1,100-Math.max(1,s.ytg-8))));
+ return pTD*wTD+pFG*wFG+Math.max(0,1-pTD-pFG)*wNo;
+}
+/* one option, one roll of the dice: play the snap, run the clock the way a coach would, then value where you are */
+function lookahead(s0,seed,first){
+ const s={...s0},r=mulberry(seed);let fs=0;
+ if(first.pre){const e=applyB(s,first.pre);if(e)return{v:terminal(e,s),fs:0};}
+ if(first.action){
+  const look=first.look||pick(lookW(s),r);
+  const e=execA(s,first.action,look,r,first.tgt,first.form,first.routes);
+  fs=(e.end==='td'||e.end==='fg'||(e.o&&e.o.first))?1:0;
+  if(e.end)return{v:terminal(e,s),fs};
+  return{v:driveValue(s),fs};
+ }
+ return{v:driveValue(s),fs};
+}
 function evaluate(s,opts){
- const N=600,seed=(Math.random()*1e9)|0,out={};
- for(const o of opts){if(o.key in out)continue;let sum=0,ok=0;
-  for(let i=0;i<N;i++){const res=rollout(s,mulberry(seed+i*7919),o.first);sum+=res.v;ok+=res.fs||0;}
-  out[o.key]={v:sum/N,ok:ok/N};}
+ const N=EVAL_N,seed=(Math.random()*1e9)|0,out={};
+ for(const o of opts){if(o.key in out)continue;let sum=0,ok=0;const vs=new Float64Array(N);
+  for(let i=0;i<N;i++){const res=lookahead(s,seed+i*7919,o.first);vs[i]=res.v;sum+=res.v;ok+=res.fs||0;}
+  out[o.key]={v:sum/N,ok:ok/N,vs};}
  return out;
 }
-function gradeOf(loss,obj){
- const L=obj==='win'?loss*100:loss,th=obj==='win'?[.5,3,8]:[.05,.25,.6];
+/* how sure we are that the best option beats this one: the same dice are rolled for every option, so compare them roll by roll */
+function lossSE(a,b){const N=a.length;let m=0,q=0;for(let i=0;i<N;i++){const d=a[i]-b[i];m+=d;q+=d*d;}m/=N;return Math.sqrt(Math.max(0,q/N-m*m)/N);}
+/* a loss counts in win-chance points, or as a share of the chance you had when that chance was small to begin with */
+function gradeOf(loss,obj,se,best){
+ const rel=obj==='win'&&best>0?18*loss/Math.max(best,.05):0;
+ const L=obj==='win'?Math.max(loss*100,rel):loss,S=obj==='win'?(se||0)*100:(se||0),th=obj==='win'?[Math.max(1.5,2*S),4.5,9]:[Math.max(.15,2*S),.4,.9];
  const score=Math.round(obj==='win'?Math.max(0,100-L*6):Math.max(0,100-L*80));
  if(L<=th[0])return{k:'best',label:'Best call',score};
  if(L<=th[1])return{k:'close',label:'Close',score};
@@ -991,6 +1097,7 @@ function start(sp){
 }
 function sampleLook(){if(G.firstLook){const l=G.firstLook;G.firstLook=null;return l;}return pick(lookW(G.s),realR);}
 function beginSnap(){
+ G.usual='';
  const s=G.s;G.preview=null;G.last=null;G.pend=null;G.calls=null;G.snapId++;
  if(MODE==='coach'){
   if(s.status!=='snap'){G.phase='B';renderAll();return;}
@@ -1059,7 +1166,8 @@ function grade(phase,opts,opt,heading){
  const rows=opts.map(o=>({...o,...ev[o.key]}));
  const best=rows.reduce((a,b)=>b.v>a.v?b:a);
  const mine={...opt,...ev[opt.key]};
- const g=gradeOf(best.v-mine.v,G.s.obj);
+ const g=gradeOf(best.v-mine.v,G.s.obj,best.key===mine.key?0:lossSE(best.vs,mine.vs),best.v);
+ rows.forEach(r=>delete r.vs);
  G.grades.push(g);
  if(G.feeds.snap!==G.snapId){G.feeds=[];G.feeds.snap=G.snapId;}
  const f={phase,heading,rows,best,mine,g,look:G.look,sb:{...G.s},pend:G.pend};
@@ -1110,7 +1218,20 @@ function snapPlayer(opt,tgt,f){
  const e=execA(s,opt.act,G.look,realR,tgt,opt.form,opt.routes);
  afterSnap(f,opt,e,sb,tgt);
 }
+/* what this call usually gets against this look, from 500 quick snaps */
+function usualLine(opt,look,sb,tgt){
+ const c=CATS[opt.act];if(!c||c.kind==='hail'||opt.act==='sneak')return'';
+ const r=mulberry(97531),N=500,st={...sb};let comp=0,ten=0,four=0,neg=0,sack=0,int=0,fum=0,att=0;
+ for(let i=0;i<N;i++){const o=simPlay(opt.act,st,look,r,tgt||'auto',opt.form,opt.routes);
+  if(o.type==='comp')comp++;if(o.type!=='sack'&&o.type!=='run'&&o.type!=='fum')att++;
+  if((o.type==='comp'||o.type==='run')&&o.y>=10)ten++;if((o.type==='comp'||o.type==='run')&&o.y>=4)four++;
+  if(o.type==='run'&&o.y<0)neg++;if(o.type==='sack')sack++;if(o.type==='int')int++;if(o.type==='fum')fum++;}
+ const p=n=>Math.round(n/N*100)+'%',vs='Against '+LOOKS[look].label+', '+esc(opt.label)+' usually ';
+ if(c.kind==='run')return vs+'gains 4+ yards '+p(four)+' of the time and 10+ '+p(ten)+'. It loses yards '+p(neg)+(fum/N>=.02?' and fumbles '+p(fum):'')+'.';
+ return vs+'completes '+p(comp)+', gains 10+ yards '+p(ten)+' and gets sacked '+p(sack)+'. Interceptions: '+(int/N<.01?'under 1%':p(int))+'.';
+}
 function afterSnap(f,opt,e,sb,tgt){
+ G.usual=(e.o&&CATS[opt.act])?usualLine(opt,G.look,sb,tgt):'';
  const text=narrate(opt.label,opt.act,e,sb);
  G.log.push({clk:fmt(sb.t),dot:f.g.k,text});
  G.feeds.forEach(x=>x.text=text);
@@ -1126,12 +1247,12 @@ function narrate(name,act,e,sb){
  const o=e.o;if(!o)return name;
  const tw=o.slot&&o.rc?' to the '+tl(o.slot)+' on the '+routeName(o.rc)+' ('+codeOut(o.rc)+')':'';
  if(o.type==='int')return name+': intercepted'+(tw?' going'+tw:'')+'. Their ball at '+oppSpot(e.oppYtg)+'.';
- if(o.type==='fum')return name+': fumble, recovered by the defense.';
+ if(o.type==='fum')return name+(o.hit?': '+(tw?'caught'+tw+', ':'')+'blown up by the defender sitting underneath and the ball comes out. Defense recovers.':': fumble, recovered by the defense.');
  if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards'+(o.bt?', '+(o.bt===1?'broke a tackle':'broke '+o.bt+' tackles'):'')+'.';
  let t;
  if(o.type==='sack')t=name+': sacked for a loss of '+(-o.y)+'. Clock running.';
  else if(o.type==='inc')t=name+': incomplete'+tw+'. Clock stops.';
- else{const yd=o.y>=0?o.y+(o.y===1?' yard':' yards'):'a loss of '+(-o.y);t=name+': '+(o.type==='comp'?'complete'+tw+' for ':'run for ')+yd;if(o.bt)t+=', breaking '+(o.bt===1?'a tackle':o.bt+' tackles');t+=o.oob?(o.first?', first down and out of bounds. Clock stops.':', out of bounds. Clock stops.'):o.first?'. First down, clock stops for the chains.':'. Clock running.';}
+ else{const yd=o.y>=0?o.y+(o.y===1?' yard':' yards'):'a loss of '+(-o.y);t=name+': '+(o.type==='comp'?'complete'+tw+' for ':'run for ')+yd;if(o.hit)t+=', and he takes a big hit from the defender sitting there';if(o.bt)t+=', breaking '+(o.bt===1?'a tackle':o.bt+' tackles');t+=o.oob?(o.first?', first down and out of bounds. Clock stops.':', out of bounds. Clock stops.'):o.first?'. First down, clock stops for the chains.':'. Clock running.';}
  if(e.end==='downs')t+=' Turnover on downs.';
  if(e.end==='time')t+=' That is the end of the '+(sb.obj==='points'?'half.':'game.');
  if(e.end==='safety')t+=' Safety.';
@@ -1157,10 +1278,7 @@ function teachNote(f){
   if(s.live&&m.act==='fg')parts.push('The clock was running, so the kick team needed about 8 seconds to get set.');
  } else if(f.phase==='T'){
   const need=s.obj==='win'?-s.margin:0;
-  if(f.look==='two')parts.push('Two-high corners squat on the sideline. The middle is where the room is.');
-  else if(f.look==='blitz')parts.push('Pressure is coming. Get the ball out to the hot or the check-down before the free rusher gets home.');
-  else if(f.look==='box')parts.push('Eight in the box means fewer underneath defenders. The middle window is bigger than usual.');
-  else parts.push('Cover 3 corners bail deep, so out-breaking throws in front of them are there.');
+  parts.push(LOOKS[f.look].tip);
   if(s.t<=60&&s.TO===0&&need>0)parts.push('No timeouts left. A catch in the middle keeps the clock running, and you lose about '+runoff('running','hurry')+' seconds getting set again.');
   if(b.key!==m.key)parts.push('Throwing '+b.label.replace(/^\d\. /,'')+' was worth '+diffStr(b.v-m.v,s.obj)+' more.');
  } else {
@@ -1176,16 +1294,20 @@ const SX=x=>270+x*10, SY=y=>(22-y)*10;
 function defPos(look,P){
  const xs=['X','H','Y','Z','R'].map(k=>P[k][0]);
  const L1=Math.max(-24,Math.min(...xs)),R1=Math.min(24,Math.max(...xs));
- const rs=xs.filter(x=>x>3&&x<R1).sort((a,b)=>b-a);const slot=rs.length?rs[0]:7;
+ const rs=xs.filter(x=>x>3&&x<R1).sort((a,b)=>b-a),ls=xs.filter(x=>x<-3&&x>L1).sort((a,b)=>a-b);
+ const sR=rs.length?rs[0]:7,sL=ls.length?ls[0]:-7;
  const DL=[[-4.5,1.2],[-1.5,1.2],[1.5,1.2],[4.5,1.2]];
+ const man=['X','H','Y','Z'].map(k=>[P[k][0],Math.abs(P[k][0])>14?1.8:3.2]);
  const m={
-  box:DL.concat([[-4,4],[0,4.5],[4,4],[7,5],[L1,6],[R1,6],[0,12]]),
-  two:DL.concat([[-3,5],[3,5],[slot,5],[L1,7],[R1,7],[-9,13],[9,13]]),
-  c3:DL.concat([[-4,5],[0,5],[4,5],[L1,8],[R1,8],[0,13],[slot,7]]),
-  blitz:DL.concat([[-3,2],[0,2.5],[3,2],[slot,2.2],[L1,1.6],[R1,1.6],[0,12]])
+  c0:DL.concat([[-3,2.2],[3,2.2]],man,[[P.R[0]*.5,4.5]]),
+  c1:DL.concat(man,[[0,4.8],[-2.6,2.4],[0,13]]),
+  c2:DL.concat([[L1+1.5,4],[R1-1.5,4],[-6,5.5],[0,6],[6,5.5],[-9,13],[9,13]]),
+  c3:DL.concat([[L1,8],[R1,8],[0,13],[sR,6],[sL,6],[-2.5,5],[2.5,5]]),
+  c4:DL.concat([[L1,8],[R1,8],[-10,9.5],[10,9.5],[-4.5,5],[0,5],[4.5,5]])
  };
  return m[look]||m.c3;
 }
+const BLITZERS={c0:[4,5],c1:[9]};
 function routePts(P,slot,pts,abs){
  const st=P[slot];if(!st||!pts)return null;
  const sign=st[0]<0?-1:st[0]>0?1:(P._f||1);
@@ -1243,6 +1365,7 @@ function renderFormation(){
    rtSvg+=poly(pts,cls,maxY,code==='S'?null:'ah');
    if(isRoute(code)&&mode!=='target'){const e=clampPt(pts[pts.length-1],maxY-.8);rnums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+codeOut(code)+'</text>';}
   }
+  if(ex.pull)ex.pull.forEach(pl=>{rtSvg+=poly(pl.map(q=>[q[0]*(P._f||1),q[1]]),'rt pull',maxY,'ah');});
   if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts.map(q=>[q[0]*(P._f||1),q[1]]),true);if(pts)rtSvg+=poly(pts,'rt run',maxY,'ahr');}
   if(mode==='target'){
    for(const key of['side','mid','check']){const slot=tg[key];if(!slot||!geo[slot])continue;const gp=geo[slot];
@@ -1255,7 +1378,7 @@ function renderFormation(){
  // defense
  let dSvg='';
  if(look){defPos(look,P).forEach(([x,y],i)=>{const cx=SX(clamp(x,-25,25)),cy=SY(y);dSvg+='<path class="d-man" d="M'+(cx-XS)+' '+(cy-XS)+'L'+(cx+XS)+' '+(cy+XS)+'M'+(cx+XS)+' '+(cy-XS)+'L'+(cx-XS)+' '+(cy+XS)+'"/>';
-  if(look==='blitz'&&i>=4&&i<=7)dSvg+='<path class="d-blitz" d="M'+cx+' '+(cy+8)+'L'+SX(x*.4)+' '+SY(-2.5)+'"/>';});}
+  if((BLITZERS[look]||[]).includes(i))dSvg+='<path class="d-blitz" d="M'+cx+' '+(cy+8)+'L'+SX(x*.4)+' '+SY(-2.5)+'"/>';});}
  // offense
  let oSvg='';
  [-4,-2,0,2,4].forEach(x=>{const cx=SX(x),cy=SY(-.8);oSvg+=x===0?'<rect class="o-man" x="'+(cx-OR)+'" y="'+(cy-OR)+'" width="'+2*OR+'" height="'+2*OR+'"/>':'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+OR+'"/>';});
@@ -1387,7 +1510,7 @@ function renderFeed(){
  if(!G.feeds.length||G.phase==='T'){el.hidden=true;return;}
  el.hidden=false;
  const t=G.feeds[G.feeds.length-1].text;
- el.innerHTML=(t&&!(G.phase==='result'&&drawerMode())?'<p class="result">'+esc(t)+'</p>':'')+'<div class="grades">'+G.feeds.map(feedCard).join('')+'</div>';
+ el.innerHTML=(t&&!(G.phase==='result'&&drawerMode())?'<p class="result">'+esc(t)+'</p>'+(G.usual?'<p class="usual">'+G.usual+'</p>':''):'')+'<div class="grades">'+G.feeds.map(feedCard).join('')+'</div>';
 }
 function lookChip(){return'<span class="look">Defense shows: '+LOOKS[G.look].label+'</span>';}
 function renderDecide(){
@@ -1395,7 +1518,7 @@ function renderDecide(){
  if(G.phase==='busy'){el.innerHTML='<div class="busy"><i></i>Playing out every option a few hundred times…</div>';return;}
  if(G.phase==='result'){
   const rt=G.feeds.length?G.feeds[G.feeds.length-1].text:'';
-  el.innerHTML=(rt?'<p class="snapres">'+esc(rt)+'</p>':'')+'<div class="snapbar"><p><b>'+downStr(s.down,s.dist,s.ytg)+' at '+spotStr(s.ytg)+'</b><br>'+fmt(s.t)+' left · '+(s.status==='running'?'clock running':s.status==='ready'?'clock starts on the ready':'clock stopped')+' · '+s.TO+' timeout'+(s.TO===1?'':'s')+'</p><button class="btn primary snapbtn" id="nextSnap">Next snap</button></div>';
+  el.innerHTML=(rt?'<p class="snapres">'+esc(rt)+'</p>'+(G.usual?'<p class="snapres usual">'+G.usual+'</p>':''):'')+'<div class="snapbar"><p><b>'+downStr(s.down,s.dist,s.ytg)+' at '+spotStr(s.ytg)+'</b><br>'+fmt(s.t)+' left · '+(s.status==='running'?'clock running':s.status==='ready'?'clock starts on the ready':'clock stopped')+' · '+s.TO+' timeout'+(s.TO===1?'':'s')+'</p><button class="btn primary snapbtn" id="nextSnap">Next snap</button></div>';
   $('#nextSnap').onclick=beginSnap;$('#nextSnap').focus({preventScroll:true});return;
  }
  if(G.phase==='done'){
@@ -1486,10 +1609,15 @@ const GUESS=[
  ['inter',/dagger|cross|\bdig\b|drive|levels|mills|\bsail\b|flood|post|choice|\bcurl\b|over|china|yankee/],
  ['sideline',/smash|\bouts?\b|comeback|fade|corner|sideline|\bspeed out|wheel|flat ?7|out ?&? ?up/],
  ['quick',/stick|slant|quick|snag|spacing|mesh|hitch|shallow|stop|\bspot\b|quick game|\bcheck\b|\bnod\b|\bpivot\b/],
- ['outside',/sweep|toss|stretch|outside|\bjet\b|pin ?pull|buck|speed option|option|\bpitch\b|perimeter|reverse|counter ?sweep/],
- ['inside',/zone|power|counter|dive|trap|\biso\b|duo|inside|wham|\bblast\b|belly|\bdart\b|\bman\b|\btrey\b|\bg ?lead\b/]
+ ['option',/option|veer|midline|triple|\bspeed\b/],
+ ['counter',/counter|\bgt\b|\bg-?t\b|\btrey\b|\bdart\b/],
+ ['power',/power|\bg ?lead\b|\bpin ?pull\b|\bbuck\b/],
+ ['trap',/trap|wham|\bfold\b/],
+ ['toss',/toss|\bpitch\b|student body/],
+ ['outside',/sweep|stretch|outside|wide zone|\boz\b|\bjet\b|perimeter|reverse/],
+ ['inside',/zone|dive|\biso\b|duo|inside|\biz\b|\bblast\b|belly|\bman\b/]
 ];
-const CATALIAS={inside:'inside',insiderun:'inside',run:'inside',outside:'outside',outsiderun:'outside',perimeter:'outside',draw:'draw',sneak:'sneak',qbsneak:'sneak',rpo:'rpo',quick:'quick',quickgame:'quick',short:'quick',sideline:'sideline',sidelinethrow:'sideline',out:'sideline',intermediate:'inter',inter:'inter',dropback:'inter',deep:'deep',deepshot:'deep',shot:'deep',pa:'pa',playaction:'pa',boot:'pa',screen:'screen',hail:'hail',hailmary:'hail'};
+const CATALIAS={power:'power',counter:'counter',toss:'toss',trap:'trap',option:'option',insidezone:'inside',iz:'inside',outsidezone:'outside',oz:'outside',widezone:'outside',inside:'inside',insiderun:'inside',run:'inside',outside:'outside',outsiderun:'outside',perimeter:'outside',draw:'draw',sneak:'sneak',qbsneak:'sneak',rpo:'rpo',quick:'quick',quickgame:'quick',short:'quick',sideline:'sideline',sidelinethrow:'sideline',out:'sideline',intermediate:'inter',inter:'inter',dropback:'inter',deep:'deep',deepshot:'deep',shot:'deep',pa:'pa',playaction:'pa',boot:'pa',screen:'screen',hail:'hail',hailmary:'hail'};
 function guessCat(name){const n=name.toLowerCase();for(const[c,re]of GUESS)if(re.test(n))return c;return null;}
 function guessForm(name){const n=' '+name.toLowerCase()+' ';
  const L=sideOf(name);
@@ -1645,6 +1773,7 @@ function drawPlay(form,cat,routes,sel){
   rt+=poly(pts,'rt'+(sel&&k!==sel?' dim':sel===k?' hot':''),maxY,code==='S'?null:'bah').replace('url(#ah)','url(#bah)');
   if(isRoute(code)){const e=clampPt(pts[pts.length-1],maxY-.8);nums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+codeOut(code)+'</text>';}
  }
+ if(ex.pull)ex.pull.forEach(pl=>{rt+=poly(pl.map(q=>[q[0]*(P._f||1),q[1]]),'rt pull',maxY,'bah');});
  if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts.map(q=>[q[0]*(P._f||1),q[1]]),true);if(pts)rt+=poly(pts,'rt run',maxY,'bahr');}
  let o='';
  [-4,-2,0,2,4].forEach(x=>{const cx=SX(x),cy=SY(-.8);o+=x===0?'<rect class="o-man" x="'+(cx-8)+'" y="'+(cy-8)+'" width="16" height="16"/>':'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="8"/>';});
