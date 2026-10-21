@@ -608,6 +608,9 @@ function afterContact(r,open,short,behind,room,adj){
  if(open&&r()<.022+.012*sk-.008*dd+.02*bt){y+=12-Math.log(1-r())*16;}
  return{y,bt};
 }
+/* calibration to real high school results: 9,263 snaps from Hudl tendency reports
+   (Hayward and Garden Grove offenses and their opponents, 2023-2025): 5.5 yards per run, 7.8 yards per pass play */
+const CAL={run:.96,yac:1.6,comp:-.05,big:.035};
 const ROOB={0:.05,1:.35,2:.05,3:.55,4:.05,5:.7,6:.05,7:.5,8:.05,9:.25};
 /* default routes for each concept type, used when a play has no routes of its own */
 const CONCEPT={
@@ -749,12 +752,12 @@ function simPlay(cat,s,look,r,tgt,form,routes){
  const b=CATS[cat],m=mt(look,cat),F=FORMS[form]||FORMS.doubles,rr=T.run-3,pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
  const o={cat,type:'run',y:0,oob:false,dur:5,tgt:tgt||'auto'};
  if(b.kind==='run'){
-  let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd),sd=b.sd;
+  let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd)*CAL.run,sd=b.sd;
   if(s.ytg<=4&&cat!=='sneak'){mean*=.75;sd*=.7;}
   sd*=m.sd;
   const contact=mean+sd*gauss(r);
   const ac=afterContact(r,contact>=5,cat==='sneak'||s.ytg<=2,contact<0,null,{c0:-.08,c1:-.045,c2:.03}[look]||0);
-  let y=Math.round(Math.max(-5,contact+ac.y));
+  let y=Math.round(Math.max(-5,contact+ac.y*CAL.run));
   if(r()<b.fum*(1+.25*ac.bt)){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
   o.y=y;o.bt=ac.bt;o.oob=r()<b.oob;o.dur=5+Math.max(0,y)/12;return o;
  }
@@ -856,7 +859,7 @@ function simRoutePass(cat,s,look,r,tgt,F,routes,o){
  if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
  let cy=Math.min(catchDepth(rc,r,slot),s.ytg+8);o.cy=cy;
  const hurry=(look==='c0'||look==='c1')?Math.max(0,q.time-2.2)*(look==='c0'?.12:.06):0;
- let comp=clamp(.16+.74*q.open+.05*qq-.03*dd+(F.pass-1)*.5-hurry-(s.ytg<=20&&cy>=s.ytg?.05:0),.06,.93);
+ let comp=clamp(.16+CAL.comp+.74*q.open+.05*qq-.03*dd+(F.pass-1)*.5-hurry-(s.ytg<=20&&cy>=s.ytg?.05:0),.06,.93);
  const intP=(q.int+Math.max(0,.4-q.open)*.05)*(1-.15*qq);
  const x=r();
  if(x<intP){o.type='int';o.air=Math.max(3,cy);o.dur=6;return o;}
@@ -866,7 +869,8 @@ function simRoutePass(cat,s,look,r,tgt,F,routes,o){
   const open=TREE[L].deep||('0126'.includes(L)&&look!=='c2');
   const room=[YAC[L][0]*ROOMK[look],YAC[L][1]];
   const ac=afterContact(r,open,false,false,room,{c0:.03,c2:-.03}[look]||0);
-  const y=Math.round(Math.max(cy-1,cy+ac.y));
+  let y=Math.round(Math.max(cy-1,cy+ac.y*CAL.yac));
+  if(r()<CAL.big*(TREE[L].deep?1.5:1))y+=Math.round(8-Math.log(1-r())*14);
   o.type='comp';o.y=y;o.bt=ac.bt;o.oob=r()<ROOB[L];o.dur=6+Math.max(0,y)/15;return o;
  }
  o.type='inc';o.dur=5;return o;
@@ -953,14 +957,23 @@ function terminal(e,s){
  }
 }
 /* default coach that plays out the rest of each simulated drive */
+/* how often high school teams run, by down and distance (the same Hudl reports) */
+const RUNSHARE={1:[.81,.80,.78,.64],2:[.73,.68,.52,.50],3:[.72,.43,.35,.28],4:[.67,.38,.29,.24]};
+function runShare(s){
+ const d=s.dist<=3?0:s.dist<=6?1:s.dist<=9?2:3;let v=RUNSHARE[Math.min(4,s.down)][d];
+ if(s.ytg<=20)v=Math.min(.9,v+.08);
+ const trailing=s.obj==='points'||s.margin<0;
+ if(trailing&&s.t<=80)v*=.2;else if(trailing&&s.t<=180)v*=.45;else if(s.obj==='win'&&s.margin>0&&s.t<=240)v=Math.min(.95,v+.25);
+ return v;
+}
 function pickPlay(s,r,look){
- const trailing=s.obj==='win'?s.margin<0:true;let w;
- if(s.ytg<=4)w={sneak:.2,inside:.3,pa:.2,quick:.2,rpo:.1};
- else if(s.dist<=1)w={sneak:.35,inside:.35,quick:.15,pa:.15};
- else if(s.dist<=3)w={inside:.3,outside:.1,quick:.3,rpo:.15,pa:.15};
- else if(trailing&&s.t<=80)w={quick:.25,sideline:.35,inter:.25,deep:.1,screen:.05};
- else if(trailing&&s.t<=180)w={quick:.25,sideline:.15,inter:.2,inside:.15,rpo:.1,screen:.1,deep:.05};
- else w={inside:.25,outside:.1,rpo:.15,quick:.2,inter:.15,pa:.1,screen:.05};
+ let run,pass;
+ if(s.ytg<=4||s.dist<=1)run={sneak:.25,inside:.25,power:.25,trap:.1,option:.15},pass={quick:.5,pa:.5};
+ else if(s.dist<=3)run={inside:.3,power:.25,counter:.15,trap:.1,option:.1,rpo:.1},pass={quick:.6,pa:.4};
+ else run={inside:.25,outside:.15,power:.15,counter:.12,toss:.1,trap:.08,option:.05,draw:.05,rpo:.05},
+  pass=s.t<=180&&(s.obj==='points'||s.margin<0)?{quick:.3,sideline:.35,inter:.25,deep:.1}:{quick:.3,sideline:.15,inter:.25,pa:.15,deep:.05,screen:.1};
+ const rs=runShare(s),w={};
+ for(const k in run)w[k]=run[k]*rs;for(const k in pass)w[k]=(w[k]||0)+pass[k]*(1-rs);
  if(look)for(const k in w){const y=mt(look,k).y;w[k]*=y*y;}
  return pick(w,r);
 }
@@ -1022,7 +1035,7 @@ const EVAL_N=1500;
 function driveValue(s){
  if(s.t<=0)return terminal({end:'time'},s);
  const off=clamp(1+.06*(T.run-3)+.06*(T.qb-3)+.04*(T.pro-3)+.03*((T.skill??3)-3)-.08*(T.def-3),.6,1.5);
- const ypp=6*off,pS=clamp(.75*Math.pow(off,.8),.5,.92);
+ const ypp=6.4*off,pS=clamp(.75*Math.pow(off,.8),.5,.92);
  const dl=Math.max(1,5-s.down),q=clamp(.74-.045*s.dist-(s.ytg<=10?.08:0),.18,.74),pCur=1-Math.pow(1-q,dl);
  const reach=y=>{/* chance to move from here to y yards out */
   if(s.ytg<=y)return 1;const rem=Math.max(0,s.ytg-y-s.dist);return(s.ytg-y<=s.dist?pCur*.92:pCur*Math.pow(pS,rem/14));};

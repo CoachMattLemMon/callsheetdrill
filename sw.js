@@ -1,5 +1,5 @@
 // Call Sheet Drill offline cache. Bump VERSION whenever index.html changes.
-const VERSION = 'csd-v8';
+const VERSION = 'csd-v9';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
