@@ -202,12 +202,12 @@ button{cursor:pointer}
 .fld .help{font-size:12px;color:var(--muted)}
 .bkhead{display:flex;justify-content:space-between;align-items:center;margin:22px 0 8px}
 .bkhead h3{margin:0;font-family:var(--f-display);font-weight:800;font-size:20px;text-transform:uppercase}
-.bk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,118px) minmax(0,92px) minmax(0,118px) 34px;gap:6px;margin-bottom:6px}
+.bk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,112px) minmax(0,98px) minmax(0,112px) auto 34px;gap:6px;margin-bottom:6px}
 .bkhd{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
 .rin{font-family:var(--f-mono);text-transform:uppercase}
 .tree{font-size:12.5px;color:var(--muted);margin:0 0 10px;max-width:70ch}
 .tree b{color:var(--ink);font-family:var(--f-mono);font-weight:400}
-@media (max-width:560px){.bk{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 34px}.bk input:first-child{grid-column:1/-1}.bk .rin{grid-column:1/3}.bkhd{display:none}}
+@media (max-width:560px){.bk,.prev .bk{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 54px}.bk input:first-child{grid-column:1/-1}.bk .rin{grid-column:1/3}.bk .drw{grid-column:3}.bkhd{display:none}}
 .bk button{border:1px solid var(--line);background:var(--bg);border-radius:6px}
 .imp{display:flex;flex-direction:column;gap:8px}
 .implab{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -220,7 +220,8 @@ button{cursor:pointer}
 .impmsg{margin:0;font-size:13.5px;min-height:1em}
 .impmsg.err{color:var(--g-miss)}
 .prev{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px}
-.prev .bk{margin:0}
+.prev .bk{margin:0;grid-template-columns:minmax(0,1fr) minmax(0,112px) minmax(0,98px) minmax(0,112px) 34px}
+.drw{font-weight:600;font-size:13px;padding:0 10px}
 .prev .q{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--g-cost);text-transform:uppercase}
 .prevhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px}
 .sheetfoot{display:flex;gap:8px;justify-content:space-between;margin-top:16px;flex-wrap:wrap}
@@ -231,6 +232,41 @@ button{cursor:pointer}
 .tipcard b{font-family:var(--f-mono);font-weight:400}
 .tipfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:14px}
 .tipfoot label{display:flex;gap:6px;align-items:center;color:var(--muted)}
+details.terms{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:18px}
+details.terms summary{cursor:pointer;font-weight:700}
+details.terms summary span{display:block;font-weight:400;font-size:12.5px;color:var(--muted)}
+.termsin h4{margin:12px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 10px}
+.tgrid label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13.5px}
+.tgrid input,.tgrid select{width:52px;text-align:center;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px;font-family:var(--f-mono);text-transform:uppercase}
+.termsin .btn{margin-top:8px}
+.builder{z-index:25;align-items:flex-start;overflow-y:auto}
+.bcard{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:100%;max-width:640px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;margin-block:auto}
+.bhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bhead h3{margin:0;font-family:var(--f-display);font-weight:800;font-size:24px;text-transform:uppercase}
+.brow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:8px}
+@media (max-width:520px){.brow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.bname{grid-column:1/-1}}
+.bf{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bf span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bf input,.bf select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 8px;min-width:0;width:100%}
+.bfield{background:var(--turf);border-radius:8px;overflow:hidden;line-height:0}
+.bfield svg{width:100%;height:auto;display:block}
+.bfield .pick{cursor:pointer}
+.bfield .pick:focus{outline:none}
+.bfield .pick:focus .o-man,.bfield .pick:hover .o-man{stroke:var(--flag);stroke-width:2.5}
+.bfield .sel .o-man{fill:var(--flag);stroke:var(--off-ink)}
+.ydl{fill:var(--chalk);fill-opacity:.75;font-family:var(--f-mono);font-size:12px}
+.bhint{margin:0;font-size:13.5px;color:var(--muted)}
+.bpos,.bchips{display:flex;flex-wrap:wrap;gap:6px}
+.bpos button,.bchips button{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 10px;font-size:13.5px;min-width:0}
+.bpos button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.bchips button b{font-family:var(--f-mono);font-weight:400;margin-right:4px}
+.bchips button[aria-pressed="true"]{border-color:var(--accent);background:var(--surface-2);font-weight:700}
+.bcombo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13.5px}
+.bcombo input{width:56px;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px;font-family:var(--f-mono);text-align:center}
+.bsp{flex:1}
+.bfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.bfoot code{font-family:var(--f-mono);font-size:14px}
 details.how{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
 details.how summary{font-weight:700;cursor:pointer}
 details.how p,details.how li{max-width:72ch}
@@ -378,9 +414,25 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 <div class="tipmodal" id="routeTip" hidden>
   <div class="tipcard" role="dialog" aria-modal="true" aria-labelledby="routeTipT">
     <h3 id="routeTipT">Odds break out. Evens break in.</h3>
-    <p>0 drag · 1 flat · 2 slant · 3 comeback · 4 curl · 5 out · 6 dig · 7 corner · 8 post · 9 go</p>
-    <p>Two digits make a combo: 87 is a post-corner. Write routes by position, like <b>X9 H8 Y0 Z5 R1</b>.</p>
+    <p id="routeTipList">0 drag · 1 flat · 2 slant · 3 comeback · 4 curl · 5 out · 6 dig · 7 corner · 8 post · 9 go</p>
+    <p id="routeTipEx">Two digits make a combo: 87 is a post-corner. Write routes by position, like <b>X9 H8 Y0 Z5 R1</b>.</p>
     <div class="tipfoot"><label><input type="checkbox" id="routeTipOff"> Don't show again</label><button class="btn primary" id="routeTipOk">Got it</button></div>
+  </div>
+</div>
+<div class="tipmodal builder" id="builder" hidden>
+  <div class="bcard" role="dialog" aria-modal="true" aria-labelledby="bTitle">
+    <div class="bhead"><h3 id="bTitle">Draw a play</h3><button class="btn" id="bCancel">Cancel</button></div>
+    <div class="brow">
+      <label class="bf bname"><span>Play</span><input type="text" id="bName" maxlength="28"></label>
+      <label class="bf"><span>Concept</span><select id="bCat"></select></label>
+      <label class="bf"><span>Formation</span><select id="bForm"></select></label>
+    </div>
+    <div class="bfield" id="bField"></div>
+    <p class="bhint" id="bHint"></p>
+    <div class="bpos" id="bPos" role="group" aria-label="Pick a player"></div>
+    <div class="bchips" id="bChips" role="group" aria-label="Pick a route"></div>
+    <div class="bcombo"><label for="bCombo">Combo</label><input type="text" id="bCombo" maxlength="2" inputmode="numeric" placeholder="87"><button class="btn" id="bComboSet">Set</button><span class="bsp"></span><button class="btn" id="bBlock">Block</button><button class="btn" id="bDefault">Default</button></div>
+    <div class="bfoot"><code id="bCode"></code><button class="btn primary" id="bSave">Save play</button></div>
   </div>
 </div>
 <div class="sheet" id="sheet" hidden>
@@ -398,6 +450,17 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="fld"><label for="tBlitz">Opponent pressure</label><select id="tBlitz"><option value="low">Rarely blitzes</option><option value="med">Average</option><option value="high">Blitz-heavy</option></select></div>
       <div class="fld"><label for="tPc">Play clock</label><select id="tPc"><option value="40">40 seconds</option><option value="25">25 seconds</option></select></div>
     </div>
+    <details class="terms" id="termsBox">
+      <summary>Use your own terms <span>Optional. Rename positions and route numbers to match your system.</span></summary>
+      <div class="termsin">
+        <h4>Position letters</h4>
+        <div class="tgrid" id="termPos"></div>
+        <h4>Route numbers</h4>
+        <div class="tgrid" id="termNum"></div>
+        <p class="impmsg" id="termMsg" role="status"></p>
+        <button class="btn" id="termReset">Back to standard</button>
+      </div>
+    </details>
     <div class="bkhead"><h3>Import a call sheet</h3></div>
     <div class="imp">
       <label for="impText" class="implab">Paste plays, one per line, or a playbook code from another coach</label>
@@ -412,7 +475,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div id="impPrev"></div>
     </div>
     <div class="bkhead"><h3>Call sheet</h3><div class="improw"><button class="btn" id="treeHelp">Route numbers</button><button class="btn" id="addPlay">Add play</button></div></div>
-    <p class="tree"><b style="font-family:var(--f-body);font-weight:700">Odds break out, evens break in.</b> Depths are from the line of scrimmage: <b>0</b> drag 2 · <b>1</b> flat 2 · <b>2</b> slant 4 · <b>3</b> comeback 10 · <b>4</b> curl 10 · <b>5</b> out 10 · <b>6</b> dig 12 · <b>7</b> corner 12 · <b>8</b> post 12 · <b>9</b> go/fade. Two digits make a combo, like <b>87</b> post-corner or <b>19</b> wheel. Write them by position, like <b>X9 H8 Y0 Z5 R1</b>. Leave a box blank to use the concept's default; the grey text shows it.</p>
+    <p class="tree" id="treeText"></p>
     <div id="book"></div>
     <div class="bkhead"><h3>Share with your staff</h3></div>
     <div class="imp">
@@ -460,8 +523,16 @@ const FORMS={
  trips:{label:'Trips',run:.97,pass:1.03,sack:1,pos:{X:[-20,-.8],H:[8,-1.5],Y:[13,-1.5],Z:[20,-.8],R:[-2.5,-5],Q:[0,-5]}},
  pro:{label:'Pro I',run:1.08,pass:.95,sack:.9,pos:{X:[-18,-.8],H:[0,-3.8],Y:[6,-.8],Z:[16,-1.5],R:[0,-6.5],Q:[0,-1.3]}},
  pistol:{label:'Pistol',run:1.04,pass:1,sack:1,pos:{X:[-20,-.8],H:[-11,-1.5],Y:[11,-1.5],Z:[20,-.8],R:[0,-7],Q:[0,-4]}},
- empty:{label:'Empty',run:.8,pass:1.06,sack:1.3,pos:{X:[-20,-.8],H:[-12,-1.5],Y:[8,-1.5],Z:[20,-.8],R:[14,-1.5],Q:[0,-5]}}
+ empty:{label:'Empty',run:.8,pass:1.06,sack:1.3,pos:{X:[-20,-.8],H:[-12,-1.5],Y:[8,-1.5],Z:[20,-.8],R:[14,-1.5],Q:[0,-5]}},
+ bunch:{label:'Bunch',run:.97,pass:1.03,sack:1,pos:{X:[-20,-.8],H:[10,-2.6],Y:[12,-1.2],Z:[14,-2.6],R:[-2.5,-5],Q:[0,-5]}},
+ twins:{label:'Twins',run:1.03,pass:.99,sack:.95,pos:{X:[-20,-.8],H:[-14,-1.5],Y:[5.5,-.8],Z:[18,-1.5],R:[2.5,-5],Q:[0,-5]}}
 };
+/* every formation comes in a right and a left version; left is the mirror image */
+(()=>{const base={...FORMS};for(const k in base)delete FORMS[k];
+ for(const k in base){const f=base[k];
+  FORMS[k]={...f,label:f.label+' Rt',pos:{...f.pos,_f:1}};
+  const m={};for(const s in f.pos)m[s]=[-f.pos[s][0],f.pos[s][1]];m._f=-1;
+  FORMS[k+'L']={...f,label:f.label+' Lt',pos:m};}})();
 const DEFFORM={inside:'pistol',outside:'doubles',draw:'doubles',sneak:'pro',rpo:'pistol',quick:'doubles',sideline:'doubles',inter:'doubles',deep:'doubles',pa:'pro',screen:'trips',hail:'empty'};
 /* ---------- route tree: depths in yards from the line of scrimmage ---------- */
 /* v = the branch after the break, as [out, up]; out = toward that receiver's sideline */
@@ -545,6 +616,20 @@ const ROUTES={
  sneak:{run:{who:'Q',pts:[[0,1.8]]}},
  rpo:{H:[[2,-1],[6,-1]],Y:[[0,4],[-1,4]],run:{who:'R',pts:[[-1,-3],[-1,1],[-1,6]]}}
 };
+/* each program's own letters and route numbers; stored routes always use the standard X H Y Z R and tree */
+const POSNAMES={X:'Split end',H:'Slot',Y:'Tight end / slot',Z:'Flanker',R:'Back'};
+const DEFTERMS=()=>({pos:{X:'X',H:'H',Y:'Y',Z:'Z',R:'R'},num:{0:'0',1:'1',2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9'}});
+function terms(){return T.terms||DEFTERMS();}
+function tl(k){return(terms().pos[k])||k;}
+function numOut(d){const v=terms().num[d];return v==null?d:String(v);}
+function numIn(d){const n=terms().num;for(const c in n)if(String(n[c])===d)return c;return d;}
+function codeOut(c){return isRoute(c)?c.split('').map(numOut).join(''):c;}
+function codeIn(c){return/^\d{1,2}$/.test(c)?c.split('').map(numIn).join(''):c;}
+function stdTerms(){const t=terms(),d=DEFTERMS();return SLOTS.every(k=>t.pos[k]===d.pos[k])&&Object.keys(d.num).every(k=>String(t.num[k])===d.num[k]);}
+function userRe(){const ls=SLOTS.map(tl).map(x=>x.replace(/[^A-Za-z]/g,'')).filter(Boolean).join('');return new RegExp('(^|[^A-Za-z])(['+ls+'])\\s*[-:=]?\\s*(\\d{1,2}|S|P)(?![\\w])','gi');}
+function parseUser(str){const m={},back={};SLOTS.forEach(k=>back[tl(k).toUpperCase()]=k);String(str||'').replace(userRe(),(_,pre,a,b)=>{const k=back[a.toUpperCase()];if(k)m[k]=codeIn(b.toUpperCase());return pre;});return m;}
+function fmtUser(m){return SLOTS.filter(k=>m[k]).map(k=>tl(k)+codeOut(m[k])).join(' ');}
+function onlyRoutes(m){const o={};for(const k in m)if(isRoute(m[k]))o[k]=m[k];return o;}
 function parseRoutes(str){const m={};String(str||'').replace(/\b([XHYZR])\s*[-:=]?\s*(\d{1,2}|S|P)(?![\w])/gi,(_,a,b)=>{m[a.toUpperCase()]=b.toUpperCase();return'';});return m;}
 function fmtRoutes(m){return SLOTS.filter(k=>m[k]).map(k=>k+m[k]).join(' ');}
 function playRoutes(cat,str){return Object.assign({},CONCEPT[cat]||{},parseRoutes(str));}
@@ -921,7 +1006,7 @@ function beginSnap(){
  }
  G.calls=playerCalls(s,G.look,a);G.phase='P';renderAll();
 }
-function bookEntry(name,cat,form,rs,tag){const routes=playRoutes(cat,rs);const nums=passable(cat)&&cat!=='hail'?' · '+fmtRoutes(routes).replace(/ ?R(P|S)\b/,''):'';return{label:name,act:cat,form,rs:rs||'',routes,grp:CATS[cat].grp,tag:tag||(CATS[cat].label+' · '+FORMS[form].label+nums)};}
+function bookEntry(name,cat,form,rs,tag){const routes=playRoutes(cat,rs);const nums=passable(cat)&&cat!=='hail'?' · '+fmtUser(onlyRoutes(routes)):'';return{label:name,act:cat,form,rs:rs||'',routes,grp:CATS[cat].grp,tag:tag||(CATS[cat].label+' · '+FORMS[form].label+nums)};}
 function playerCalls(s,look,coachCat){
  const ok=b=>CATS[b[1]]&&!(b[1]==='hail'&&(s.ytg<25||s.t>20))&&!(b[1]==='sneak'&&s.dist>3);
  const book=T.book.filter(ok);
@@ -962,7 +1047,7 @@ function optionsP(){
 }
 function optionsT(){
  const s=G.s,c=G.pend,pre=s.status!=='snap'?'hurry':null,map=targetsFor(c.routes);
- return ['side','mid','check'].filter(k=>map[k]).map(k=>{const sl=map[k],rc=c.routes[sl],ci=CLASSINFO[routeClass(rc,sl)];return{label:TGINFO[k].n+'. '+sl+' '+routeName(rc),act:k,slot:sl,tag:ci.label+' ('+rc+'), '+(catchMean(rc,sl)<=1?'caught near the line':'caught around '+Math.round(catchMean(rc,sl))+' yards')+'. '+ci.sub,key:k,first:{pre,action:c.act,look:G.look,form:c.form,tgt:k,routes:c.routes}};});
+ return ['side','mid','check'].filter(k=>map[k]).map(k=>{const sl=map[k],rc=c.routes[sl],ci=CLASSINFO[routeClass(rc,sl)];return{label:TGINFO[k].n+'. '+tl(sl)+' '+routeName(rc),act:k,slot:sl,tag:ci.label+' ('+codeOut(rc)+'), '+(catchMean(rc,sl)<=1?'caught near the line':'caught around '+Math.round(catchMean(rc,sl))+' yards')+'. '+ci.sub,key:k,first:{pre,action:c.act,look:G.look,form:c.form,tgt:k,routes:c.routes}};});
 }
 function grade(phase,opts,opt,heading){
  const ev=evaluate(G.s,opts);
@@ -1034,7 +1119,7 @@ function narrate(name,act,e,sb){
  if(act==='punt')return'Punt. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(act==='kneel')return'Victory formation. Into the half.';
  const o=e.o;if(!o)return name;
- const tw=o.slot&&o.rc?' to the '+o.slot+' on the '+routeName(o.rc)+' ('+o.rc+')':'';
+ const tw=o.slot&&o.rc?' to the '+tl(o.slot)+' on the '+routeName(o.rc)+' ('+codeOut(o.rc)+')':'';
  if(o.type==='int')return name+': intercepted'+(tw?' going'+tw:'')+'. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(o.type==='fum')return name+': fumble, recovered by the defense.';
  if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards'+(o.bt?', '+(o.bt===1?'broke a tackle':'broke '+o.bt+' tackles'):'')+'.';
@@ -1098,7 +1183,7 @@ function defPos(look,P){
 }
 function routePts(P,slot,pts,abs){
  const st=P[slot];if(!st||!pts)return null;
- const sign=st[0]<0?-1:1;
+ const sign=st[0]<0?-1:st[0]>0?1:(P._f||1);
  return [st].concat(pts.map(p=>abs===true?[p[0],p[1]]:abs==='tree'?[st[0]+sign*p[0],p[1]]:[st[0]+sign*p[0],st[1]+p[1]]));
 }
 /* where on the drawn route the ball is caught */
@@ -1151,13 +1236,13 @@ function renderFormation(){
    if(!pts)continue;geo[k]={pts,code};
    let cls='rt';if(hot)cls+=hot.has(k)?' hot':' dim';
    rtSvg+=poly(pts,cls,maxY,code==='S'?null:'ah');
-   if(isRoute(code)&&mode!=='target'){const e=clampPt(pts[pts.length-1],maxY-.8);rnums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+code+'</text>';}
+   if(isRoute(code)&&mode!=='target'){const e=clampPt(pts[pts.length-1],maxY-.8);rnums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+codeOut(code)+'</text>';}
   }
-  if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts,true);if(pts)rtSvg+=poly(pts,'rt run',maxY,'ahr');}
+  if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts.map(q=>[q[0]*(P._f||1),q[1]]),true);if(pts)rtSvg+=poly(pts,'rt run',maxY,'ahr');}
   if(mode==='target'){
    for(const key of['side','mid','check']){const slot=tg[key];if(!slot||!geo[slot])continue;const gp=geo[slot];
     const cp=clampPt(catchPt(gp.pts,gp.code,catchMean(gp.code,slot)),maxY-1);
-    const x=SX(cp[0]),y=SY(cp[1]),lx=clamp(x,40,500),nm=slot+' '+routeName(gp.code)+' ('+gp.code+')';
+    const x=SX(cp[0]),y=SY(cp[1]),lx=clamp(x,40,500),nm=tl(slot)+' '+routeName(gp.code)+' ('+codeOut(gp.code)+')';
     badges+='<g class="tg click" data-tgt="'+key+'" tabindex="0" role="button" aria-label="Throw '+TGINFO[key].n+': '+nm+'"><circle cx="'+x+'" cy="'+y+'" r="12"/><text x="'+x+'" y="'+(y+4.5)+'" text-anchor="middle">'+TGINFO[key].n+'</text></g>';
     badges+='<text class="tag" x="'+lx+'" y="'+(y-17)+'" text-anchor="middle">'+nm+'</text>';}
   }
@@ -1169,7 +1254,7 @@ function renderFormation(){
  // offense
  let oSvg='';
  [-4,-2,0,2,4].forEach(x=>{const cx=SX(x),cy=SY(-.8);oSvg+=x===0?'<rect class="o-man" x="'+(cx-OR)+'" y="'+(cy-OR)+'" width="'+2*OR+'" height="'+2*OR+'"/>':'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+OR+'"/>';});
- for(const k of['X','H','Y','Z','R','Q']){const[x,y]=P[k];const cx=SX(x),cy=SY(y);oSvg+='<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+PR+'"/><text class="o-lab" x="'+cx+'" y="'+(cy+FS*.36)+'" text-anchor="middle" style="font-size:'+FS+'px">'+k+'</text>';}
+ for(const k of['X','H','Y','Z','R','Q']){const[x,y]=P[k];const cx=SX(x),cy=SY(y);oSvg+='<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="'+PR+'"/><text class="o-lab" x="'+cx+'" y="'+(cy+FS*.36)+'" text-anchor="middle" style="font-size:'+FS+'px">'+esc(k==='Q'?'Q':tl(k))+'</text>';}
  g+=dSvg+rtSvg+oSvg+rnums+badges;
  // result path
  let anim=null;
@@ -1179,7 +1264,7 @@ function renderFormation(){
    const R=ROUTES[cat]||{},carrier=R.run?R.run.who:null;let path=[],lab='';
    const gain=G.last.e.end==='td'?sb.ytg:o.y;
    if(CATS[cat].kind==='run'){
-    const pts=routePts(P,carrier||'R',(R.run&&R.run.pts)||[[0,3]],true);
+    const pts=routePts(P,carrier||'R',((R.run&&R.run.pts)||[[0,3]]).map(q=>[q[0]*(P._f||1),q[1]]),true);
     const last=pts[pts.length-1];path=pts.slice(0,-1).concat([[last[0],Math.min(gain,last[1])],[last[0],gain]]);
     lab=o.type==='fum'?'FUMBLE':(gain>=0?'+':'')+gain;
    } else if(o.type==='sack'){path=[P.Q,[P.Q[0],o.y]];lab='SACK';}
@@ -1367,17 +1452,18 @@ function renderLog(){
 /* ================= team sheet ================= */
 function openTeam(){
  $('#tName').value=T.name;['Run','Pro','Qb','Skill','Kick','Def'].forEach(k=>{const key=k.toLowerCase();$('#t'+k).value=T[key];$('#o'+k).textContent=T[key]+(k==='Kick'?' yd':'');});
- $('#tBlitz').value=T.blitz;$('#tPc').value=String(T.pc);renderBook();renderExport();renderPreview();$('#sheet').hidden=false;$('#tName').focus();
+ $('#tBlitz').value=T.blitz;$('#tPc').value=String(T.pc);renderBook();renderExport();renderPreview();renderTerms();renderTreeText();$('#sheet').hidden=false;$('#tName').focus();
 }
 function renderBook(){
  const co=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
  const fo=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
- $('#book').innerHTML='<div class="bk bkhd" aria-hidden="true"><span>Play</span><span>Concept</span><span>Formation</span><span>Routes</span><span></span></div>'+T.book.map(([n,c,f,rs],i)=>'<div class="bk"><input id="bkN'+i+'" type="text" value="'+esc(n)+'" aria-label="Play name" maxlength="28"><select id="bkC'+i+'" aria-label="Concept type">'+co+'</select><select id="bkF'+i+'" aria-label="Formation">'+fo+'</select><input id="bkR'+i+'" class="rin" type="text" value="'+esc(rs||'')+'" aria-label="Routes for '+esc(n)+'" placeholder="'+esc(passable(c)&&c!=='hail'?fmtRoutes(CONCEPT[c]).replace(/ ?R(P|S)\b/,''):'—')+'" spellcheck="false" autocapitalize="characters"><button data-del="'+i+'" aria-label="Remove '+esc(n)+'">×</button></div>').join('');
+ $('#book').innerHTML='<div class="bk bkhd" aria-hidden="true"><span>Play</span><span>Concept</span><span>Formation</span><span>Routes</span><span></span><span></span></div>'+T.book.map(([n,c,f,rs],i)=>'<div class="bk"><input id="bkN'+i+'" type="text" value="'+esc(n)+'" aria-label="Play name" maxlength="28"><select id="bkC'+i+'" aria-label="Concept type">'+co+'</select><select id="bkF'+i+'" aria-label="Formation">'+fo+'</select><input id="bkR'+i+'" class="rin" type="text" value="'+esc(fmtUser(parseRoutes(rs)))+'" aria-label="Routes for '+esc(n)+'" placeholder="'+esc(passable(c)&&c!=='hail'?fmtUser(onlyRoutes(CONCEPT[c])):'—')+'" spellcheck="false" autocapitalize="characters"><button class="drw" data-draw="'+i+'" aria-label="Draw '+esc(n)+' on the field">Draw</button><button data-del="'+i+'" aria-label="Remove '+esc(n)+'">×</button></div>').join('');
  T.book.forEach(([n,c,f],i)=>{$('#bkC'+i).value=c;$('#bkF'+i).value=f;
-  $('#bkR'+i).onchange=e=>{const v=fmtRoutes(parseRoutes(e.target.value));T.book[i][3]=v;e.target.value=v;saveTeam();};
+  $('#bkR'+i).onchange=e=>{const m=parseUser(e.target.value);T.book[i][3]=fmtRoutes(m);e.target.value=fmtUser(m);saveTeam();};
   $('#bkN'+i).oninput=e=>{T.book[i][0]=e.target.value||'Play';saveTeam();};
   $('#bkC'+i).onchange=e=>{T.book[i][1]=e.target.value;saveTeam();renderBook();};
   $('#bkF'+i).onchange=e=>{T.book[i][2]=e.target.value;saveTeam();};});
+ $('#book').querySelectorAll('[data-draw]').forEach(b=>b.onclick=()=>openBuilder(+b.dataset.draw,b));
  $('#book').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(T.book.length<=3)return;T.book.splice(+b.dataset.del,1);saveTeam();renderBook();});
 }
 function saveTeam(){save('csd-team',T);renderExport();}
@@ -1401,21 +1487,25 @@ const GUESS=[
 const CATALIAS={inside:'inside',insiderun:'inside',run:'inside',outside:'outside',outsiderun:'outside',perimeter:'outside',draw:'draw',sneak:'sneak',qbsneak:'sneak',rpo:'rpo',quick:'quick',quickgame:'quick',short:'quick',sideline:'sideline',sidelinethrow:'sideline',out:'sideline',intermediate:'inter',inter:'inter',dropback:'inter',deep:'deep',deepshot:'deep',shot:'deep',pa:'pa',playaction:'pa',boot:'pa',screen:'screen',hail:'hail',hailmary:'hail'};
 function guessCat(name){const n=name.toLowerCase();for(const[c,re]of GUESS)if(re.test(n))return c;return null;}
 function guessForm(name){const n=' '+name.toLowerCase()+' ';
- if(/trips|trey|bunch|3x1|tre\b|stack/.test(n))return'trips';
- if(/empty|5 wide|five wide|\bmt\b/.test(n))return'empty';
- if(/pistol/.test(n))return'pistol';
- if(/\bpro\b|i[- ]?form|\bi\b|\b2[12]\b|under center|power i|wing|\bace\b|\btwins\b|\bheavy\b/.test(n))return'pro';
- if(/doubles|2x2|spread|deuce|\bgun\b|shotgun|\bdbl\b|\b10\b|\b11\b/.test(n))return'doubles';
+ const L=sideOf(name);
+ if(/bunch|stack|cluster/.test(n))return'bunch'+L;
+ if(/twins|\btwin\b/.test(n))return'twins'+L;
+ if(/trips|trey|3x1|tre\b/.test(n))return'trips'+L;
+ if(/empty|5 wide|five wide|\bmt\b/.test(n))return'empty'+L;
+ if(/pistol/.test(n))return'pistol'+L;
+ if(/\bpro\b|i[- ]?form|\bi\b|\b2[12]\b|under center|power i|wing|\bace\b|\btwins\b|\bheavy\b/.test(n))return'pro'+L;
+ if(/doubles|2x2|spread|deuce|\bgun\b|shotgun|\bdbl\b|\b10\b|\b11\b/.test(n))return'doubles'+L;
  return null;}
 function normCat(v){if(!v)return null;const k=v.toLowerCase().replace(/[^a-z]/g,'');if(CATS[k])return k;return CATALIAS[k]||null;}
-function normForm(v){if(!v)return null;const k=v.toLowerCase().replace(/[^a-z0-9]/g,'');if(FORMS[k])return k;const m={proi:'pro',iform:'pro',i:'pro',twobytwo:'doubles','2x2':'doubles',spread:'doubles','3x1':'trips',empty:'empty',fivewide:'empty',gun:'doubles',shotgun:'doubles'};return m[k]||guessForm(v);}
-function encodeBook(){const o={v:1,n:T.name,r:[T.run,T.pro,T.qb,T.kick,T.def,T.skill],b:T.blitz,p:T.pc,k:T.book};
+function sideOf(v){return/\b(lt|left)\b/i.test(v||'')?'L':'';}
+function normForm(v){if(!v)return null;const L=sideOf(v);const k=v.toLowerCase().replace(/\b(lt|left|rt|right)\b/g,'').replace(/[^a-z0-9]/g,'');if(FORMS[k])return k+L;const m={proi:'pro',iform:'pro',i:'pro',twobytwo:'doubles','2x2':'doubles',spread:'doubles','3x1':'trips',empty:'empty',fivewide:'empty',gun:'doubles',shotgun:'doubles'};const g=m[k]||guessForm(v);return g?g+(g.endsWith('L')?'':L):null;}
+function encodeBook(){const o={v:1,n:T.name,r:[T.run,T.pro,T.qb,T.kick,T.def,T.skill],b:T.blitz,p:T.pc,k:T.book,t:stdTerms()?undefined:T.terms};
  return'CSD1:'+btoa(unescape(encodeURIComponent(JSON.stringify(o))));}
 function decodeBook(str){const m=str.trim().match(/CSD1:([A-Za-z0-9+/=\s]+)/);if(!m)return null;
  try{const o=JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/\s+/g,'')))));
   if(!Array.isArray(o.k))return null;
   const rows=o.k.slice(0,80).map(b=>({name:String(b[0]||'Play').slice(0,28),cat:CATS[b[1]]?b[1]:'quick',form:FORMS[b[2]]?b[2]:DEFFORM[b[1]]||'doubles',rs:fmtRoutes(parseRoutes(b[3]||'')),q:false}));
-  return{rows,team:{name:String(o.n||'Their team').slice(0,30),r:o.r,b:o.b,p:o.p}};
+  return{rows,team:{name:String(o.n||'Their team').slice(0,30),r:o.r,b:o.b,p:o.p,t:o.t}};
  }catch(e){return null;}}
 function parseLines(text){
  const rows=[];
@@ -1425,8 +1515,8 @@ function parseLines(text){
   let parts=sep?line.split(sep).map(x=>x.trim().replace(/^"|"$/g,'')):[line.trim()];
   parts=parts.filter(x=>x!=='');
   if(!parts.length)return;
-  const rs=fmtRoutes(parseRoutes(parts.slice(1).join(' ')+' '+parts[0]));
-  const name=parts[0].replace(/\b[XHYZR]\s*[-:=]?\s*(\d{1,2}|S|P)(?![\w])/gi,'').replace(/\s{2,}/g,' ').trim()||parts[0];
+  const rs=fmtRoutes(parseUser(parts.slice(1).join(' ')+' '+parts[0]));
+  const name=parts[0].replace(userRe(),'$1').replace(/\s{2,}/g,' ').trim()||parts[0];
   if(/^(play|name|call|play name)$/i.test(name))return;
   let cat=normCat(parts[1]),form=normForm(parts[2]);
   // a lone second column might be a formation
@@ -1457,12 +1547,12 @@ function renderPreview(){
  const el=$('#impPrev');if(!IMP){el.innerHTML='';return;}
  const co=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
  const fo=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
- el.innerHTML='<div class="prev"><div class="prevhead"><b>Review before adding</b>'+(IMP.team?'<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="impTeam" checked> Also use their team ratings</label>':'')+'</div>'
-  +IMP.rows.map((r,i)=>'<div class="bk"><input id="ipN'+i+'" type="text" value="'+esc(r.name)+'" aria-label="Play name" maxlength="28"><select id="ipC'+i+'" aria-label="Concept type">'+co+'</select><select id="ipF'+i+'" aria-label="Formation">'+fo+'</select><input id="ipR'+i+'" class="rin" type="text" value="'+esc(r.rs||'')+'" aria-label="Routes" placeholder="default" spellcheck="false"><button data-x="'+i+'" aria-label="Skip '+esc(r.name)+'">×</button></div>'+(r.q?'<span class="q">Check the concept for '+esc(r.name)+'</span>':'')).join('')
+ el.innerHTML='<div class="prev"><div class="prevhead"><b>Review before adding</b>'+(IMP.team?'<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="impTeam" checked> Also use their team ratings and terms</label>':'')+'</div>'
+  +IMP.rows.map((r,i)=>'<div class="bk"><input id="ipN'+i+'" type="text" value="'+esc(r.name)+'" aria-label="Play name" maxlength="28"><select id="ipC'+i+'" aria-label="Concept type">'+co+'</select><select id="ipF'+i+'" aria-label="Formation">'+fo+'</select><input id="ipR'+i+'" class="rin" type="text" value="'+esc(fmtUser(parseRoutes(r.rs)))+'" aria-label="Routes" placeholder="default" spellcheck="false"><button data-x="'+i+'" aria-label="Skip '+esc(r.name)+'">×</button></div>'+(r.q?'<span class="q">Check the concept for '+esc(r.name)+'</span>':'')).join('')
   +'<div class="improw"><button class="btn primary" id="impReplace">Replace my call sheet</button><button class="btn" id="impAdd">Add to my call sheet</button><button class="btn" id="impCancel">Cancel</button></div></div>';
  IMP.rows.forEach((r,i)=>{$('#ipC'+i).value=r.cat;$('#ipF'+i).value=r.form;
   $('#ipN'+i).oninput=e=>{r.name=e.target.value||'Play';};
-  $('#ipR'+i).onchange=e=>{r.rs=fmtRoutes(parseRoutes(e.target.value));e.target.value=r.rs;};
+  $('#ipR'+i).onchange=e=>{const m=parseUser(e.target.value);r.rs=fmtRoutes(m);e.target.value=fmtUser(m);};
   $('#ipC'+i).onchange=e=>{r.cat=e.target.value;r.q=false;};
   $('#ipF'+i).onchange=e=>{r.form=e.target.value;};});
  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{IMP.rows.splice(+b.dataset.x,1);if(!IMP.rows.length)IMP=null;renderPreview();});
@@ -1471,7 +1561,7 @@ function renderPreview(){
   if(replace)T.book=rows;else T.book=T.book.concat(rows).slice(0,100);
   if(IMP.team&&$('#impTeam')&&$('#impTeam').checked){const t=IMP.team;T.name=t.name;
    if(Array.isArray(t.r)&&t.r.length>=5){[T.run,T.pro,T.qb,T.kick,T.def]=t.r.slice(0,5).map((v,j)=>clamp(+v||3,j===3?20:1,j===3?50:5));T.skill=clamp(+t.r[5]||3,1,5);}
-   if(['low','med','high'].includes(t.b))T.blitz=t.b;if(t.p==25||t.p==40)T.pc=+t.p;}
+   if(['low','med','high'].includes(t.b))T.blitz=t.b;if(t.p==25||t.p==40)T.pc=+t.p;T.terms=cleanTerms(t.t);}
   const n=rows.length;IMP=null;$('#impText').value='';saveTeam();openTeam();
   const m=$('#impMsg');m.className='impmsg';m.textContent=(replace?'Call sheet replaced with ':'Added ')+n+' plays.';
  };
@@ -1485,6 +1575,103 @@ function copyText(text,btn,msgEl,done){
  const fallback=()=>{const ta=$('#expCode');ta.value=text;ta.focus();ta.select();msgEl.className='impmsg';msgEl.textContent='Copying is blocked here. The text is selected in the box, so copy it with your keyboard or long-press.';};
  try{navigator.clipboard.writeText(text).then(ok,fallback);}catch(e){fallback();}
 }
+
+/* ---------- your terms ---------- */
+function cleanTerms(t){
+ if(!t||typeof t!=='object')return undefined;const d=DEFTERMS(),o={pos:{},num:{}};
+ SLOTS.forEach(k=>{const v=String((t.pos||{})[k]||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,1);o.pos[k]=v||d.pos[k];});
+ Object.keys(d.num).forEach(k=>{const v=String((t.num||{})[k]??'').replace(/\D/g,'').slice(0,1);o.num[k]=v===''?d.num[k]:v;});
+ if(new Set(SLOTS.map(k=>o.pos[k])).size<5||new Set(Object.values(o.num)).size<10)return undefined;
+ return o;
+}
+if(T.terms)T.terms=cleanTerms(T.terms);
+function renderTerms(){
+ const t=terms();
+ $('#termPos').innerHTML=SLOTS.map(k=>'<label for="tp'+k+'">'+POSNAMES[k]+' <input id="tp'+k+'" maxlength="1" value="'+esc(t.pos[k])+'" autocapitalize="characters"></label>').join('');
+ const digs=[0,1,2,3,4,5,6,7,8,9];
+ $('#termNum').innerHTML=Object.keys(TREE).map(c=>'<label for="tn'+c+'">'+TREE[c].n[0].toUpperCase()+TREE[c].n.slice(1)+' <select id="tn'+c+'">'+digs.map(d=>'<option'+(String(t.num[c])===String(d)?' selected':'')+'>'+d+'</option>').join('')+'</select></label>').join('');
+ const upd=()=>{const nt={pos:{},num:{}};SLOTS.forEach(k=>nt.pos[k]=$('#tp'+k).value);Object.keys(TREE).forEach(c=>nt.num[c]=$('#tn'+c).value);
+  const m=$('#termMsg');const c=cleanTerms(nt);
+  const posDup=new Set(SLOTS.map(k=>String(nt.pos[k]).toUpperCase())).size<5,numDup=new Set(Object.values(nt.num)).size<10;
+  if(!c){m.className='impmsg err';m.textContent=posDup?'Each position needs its own letter.':numDup?'Each route needs its own number.':'Use one letter per position.';return;}
+  m.className='impmsg';m.textContent='Saved. The game, the diagrams and your call sheet now use these.';
+  T.terms=c;if(stdTerms())T.terms=undefined;saveTeam();renderBook();renderTreeText();};
+ SLOTS.forEach(k=>$('#tp'+k).addEventListener('change',upd));Object.keys(TREE).forEach(c=>$('#tn'+c).addEventListener('change',upd));
+}
+$('#termReset').onclick=()=>{T.terms=undefined;saveTeam();renderTerms();renderBook();renderTreeText();$('#termMsg').className='impmsg';$('#termMsg').textContent='Back to the standard letters and route tree.';};
+function renderTreeText(){
+ const order=Object.keys(TREE).sort((a,b)=>numOut(a)-numOut(b));
+ const std=stdTerms(),oddOut=order.every(c=>TREE[c].side==='vert'||(+numOut(c)%2===1)===(TREE[c].side==='out'));
+ const head=std||oddOut?'Odds break out. Evens break in.':'Your route numbers';
+ const ex=fmtUser({X:'9',H:'8',Y:'0',Z:'5',R:'1'});
+ $('#routeTipT').textContent=head;
+ $('#routeTipList').textContent=order.map(c=>numOut(c)+' '+TREE[c].n).join(' · ');
+ $('#routeTipEx').innerHTML='Two digits make a combo: '+codeOut('87')+' is a post-corner. Write routes by position, like <b>'+esc(ex)+'</b>.';
+ $('#treeText').innerHTML='<b style="font-family:var(--f-body);font-weight:700">'+esc(head)+'</b> Depths are from the line of scrimmage: '+order.map(c=>'<b>'+numOut(c)+'</b> '+TREE[c].n+(TREE[c].d?' '+TREE[c].d:'')).join(' · ')+'. Two digits make a combo, like <b>'+codeOut('87')+'</b> post-corner. Write them by position, like <b>'+esc(ex)+'</b>, or tap <b style="font-family:var(--f-body)">Draw</b> to build the play on the field.';
+}
+
+/* ---------- play builder ---------- */
+let BLD=null;
+function openBuilder(i,ret){
+ const b=T.book[i];if(!b)return;
+ BLD={i,name:b[0],cat:b[1],form:b[2],routes:parseRoutes(b[3]),sel:'X',ret};
+ $('#bCat').innerHTML=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
+ $('#bForm').innerHTML=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
+ $('#bName').value=BLD.name;$('#bCat').value=BLD.cat;$('#bForm').value=BLD.form;
+ $('#builder').hidden=false;renderBuilder();$('#bName').focus();
+ routeTip(false,$('#bName'));
+}
+function closeBuilder(){$('#builder').hidden=true;const r=BLD&&BLD.ret;BLD=null;if(r&&document.body.contains(r))r.focus();}
+function bEffective(){return playRoutes(BLD.cat,fmtRoutes(BLD.routes));}
+function drawPlay(form,cat,routes,sel){
+ const P=FORMS[form].pos,maxY=21.5;
+ let g='<svg viewBox="0 30 540 290" role="img" aria-label="'+esc(FORMS[form].label)+' diagram">';
+ g+='<defs><marker id="bah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker><marker id="bahr" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path class="ah-run" d="M0 0L10 5L0 10z"/></marker></defs>';
+ g+='<rect class="f-turf" x="0" y="0" width="540" height="330"/>';
+ for(let y=5;y<=20;y+=5){g+='<line class="f-line" x1="0" y1="'+SY(y)+'" x2="540" y2="'+SY(y)+'" stroke-width="1.5"/><text class="ydl" x="6" y="'+(SY(y)-4)+'">'+y+'</text>';}
+ for(let y=-7;y<=21;y++)if(y%5)for(const hx of[-8.9,8.9])g+='<line class="f-hash" x1="'+(SX(hx)-5)+'" y1="'+SY(y)+'" x2="'+(SX(hx)+5)+'" y2="'+SY(y)+'"/>';
+ g+='<line class="f-los" x1="0" y1="'+SY(0)+'" x2="540" y2="'+SY(0)+'"/>';
+ const ex=ROUTES[cat]||{};let rt='',nums='';
+ for(const k of['X','H','Y','Z','R','Q']){
+  let pts=null,code=null;
+  if(ex[k])pts=routePts(P,k,ex[k]);
+  else if(routes[k]&&routes[k]!=='P'){code=routes[k];pts=routePts(P,k,treePts(code,k),'tree');}
+  if(!pts)continue;
+  rt+=poly(pts,'rt'+(sel&&k!==sel?' dim':sel===k?' hot':''),maxY,code==='S'?null:'bah').replace('url(#ah)','url(#bah)');
+  if(isRoute(code)){const e=clampPt(pts[pts.length-1],maxY-.8);nums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+codeOut(code)+'</text>';}
+ }
+ if(ex.run){const pts=routePts(P,ex.run.who,ex.run.pts.map(q=>[q[0]*(P._f||1),q[1]]),true);if(pts)rt+=poly(pts,'rt run',maxY,'bahr');}
+ let o='';
+ [-4,-2,0,2,4].forEach(x=>{const cx=SX(x),cy=SY(-.8);o+=x===0?'<rect class="o-man" x="'+(cx-8)+'" y="'+(cy-8)+'" width="16" height="16"/>':'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="8"/>';});
+ for(const k of['X','H','Y','Z','R','Q']){const[x,y]=P[k];const cx=SX(x),cy=SY(y),pk=k!=='Q';
+  o+=(pk?'<g class="pick'+(sel===k?' sel':'')+'" data-slot="'+k+'" tabindex="0" role="button" aria-label="'+POSNAMES[k]+' '+esc(tl(k))+'">':'<g>')+'<circle class="o-man" cx="'+cx+'" cy="'+cy+'" r="11"/><text class="o-lab" x="'+cx+'" y="'+(cy+4.5)+'" text-anchor="middle" style="font-size:12.5px">'+esc(pk?tl(k):'Q')+'</text></g>';}
+ return g+rt+o+nums+'</svg>';
+}
+function renderBuilder(){
+ if(!BLD)return;const eff=bEffective(),run=CATS[BLD.cat].kind==='run',sel=BLD.sel,own=BLD.routes[sel],cur=eff[sel];
+ $('#bField').innerHTML=drawPlay(BLD.form,BLD.cat,eff,sel);
+ $('#bField').querySelectorAll('.pick').forEach(n=>{const go=()=>{BLD.sel=n.dataset.slot;renderBuilder();};n.addEventListener('click',go);n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});
+ $('#bPos').innerHTML=SLOTS.map(k=>'<button aria-pressed="'+(k===sel)+'" data-p="'+k+'">'+esc(tl(k))+' <span style="opacity:.7">'+(eff[k]?(isRoute(eff[k])?routeName(eff[k]):eff[k]==='S'?'block':eff[k]==='P'?'pass pro':''):'—')+'</span></button>').join('');
+ $('#bPos').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.sel=b.dataset.p;renderBuilder();});
+ const order=Object.keys(TREE).sort((a,b)=>numOut(a)-numOut(b));
+ $('#bChips').innerHTML=order.map(c=>'<button aria-pressed="'+(cur===c)+'" data-c="'+c+'"><b>'+numOut(c)+'</b>'+TREE[c].n+'</button>').join('');
+ $('#bChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.routes[sel]=b.dataset.c;bNext();});
+ $('#bBlock').textContent=sel==='R'?'Pass pro':'Block';
+ $('#bHint').textContent=run?'Run play: receivers block. Give a receiver a route to show a tag or a pop pass.':'Tap a player, then tap his route. '+tl(sel)+' is '+(cur?(isRoute(cur)?'running a '+routeName(cur)+' ('+codeOut(cur)+')':cur==='S'?'blocking':'in pass pro'):'not set')+(own?'.':' (concept default).');
+ $('#bCode').textContent=fmtUser(BLD.routes)||'Using the concept defaults';
+}
+function bNext(){const i=SLOTS.indexOf(BLD.sel);if(i<SLOTS.length-1)BLD.sel=SLOTS[i+1];renderBuilder();}
+$('#bName').addEventListener('input',e=>{BLD.name=e.target.value||'Play';});
+$('#bCat').addEventListener('change',e=>{BLD.cat=e.target.value;renderBuilder();});
+$('#bForm').addEventListener('change',e=>{BLD.form=e.target.value;renderBuilder();});
+$('#bComboSet').onclick=()=>{const v=$('#bCombo').value.replace(/\D/g,'');if(!/^\d{1,2}$/.test(v))return;BLD.routes[BLD.sel]=codeIn(v);$('#bCombo').value='';bNext();};
+$('#bCombo').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#bComboSet').click();}});
+$('#bBlock').onclick=()=>{BLD.routes[BLD.sel]=BLD.sel==='R'?'P':'S';bNext();};
+$('#bDefault').onclick=()=>{delete BLD.routes[BLD.sel];renderBuilder();};
+$('#bSave').onclick=()=>{T.book[BLD.i]=[(BLD.name||'Play').slice(0,28),BLD.cat,BLD.form,fmtRoutes(BLD.routes)];saveTeam();renderBook();closeBuilder();};
+$('#bCancel').onclick=closeBuilder;
+$('#builder').addEventListener('click',e=>{if(e.target.id==='builder')closeBuilder();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#builder').hidden&&$('#routeTip').hidden){e.stopImmediatePropagation();closeBuilder();}},true);
 $('#impRead').onclick=()=>{readImport($('#impText').value);if(IMP)routeTip(false,$('#impRead'));};
 /* ---------- route-number reminder ---------- */
 let rtShown=false,rtOff=false,rtReturn=null;try{rtOff=localStorage.getItem('csd-routetip')==='1';}catch(e){}
@@ -1492,7 +1679,7 @@ function routeTip(force,ret){if(!force&&(rtOff||rtShown))return;rtShown=true;rtR
 function closeRouteTip(){$('#routeTip').hidden=true;if($('#routeTipOff').checked){rtOff=true;try{localStorage.setItem('csd-routetip','1');}catch(e){}}if(rtReturn&&document.body.contains(rtReturn))rtReturn.focus();}
 $('#routeTipOk').onclick=closeRouteTip;
 $('#routeTip').addEventListener('click',e=>{if(e.target.id==='routeTip')closeRouteTip();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#routeTip').hidden){e.stopPropagation();closeRouteTip();}},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#routeTip').hidden){e.stopImmediatePropagation();closeRouteTip();}},true);
 $('#treeHelp').onclick=()=>routeTip(true,$('#treeHelp'));
 $('#book').addEventListener('focusin',e=>{if(e.target.classList.contains('rin'))routeTip(false,e.target);});
 $('#impPrev').addEventListener('focusin',e=>{if(e.target.classList.contains('rin'))routeTip(false,e.target);});
@@ -1503,12 +1690,12 @@ $('#impFile').addEventListener('change',e=>{const f=e.target.files&&e.target.fil
  rd.onerror=()=>{$('#impMsg').textContent='Could not read that file. Try saving it as CSV or plain text.';$('#impMsg').className='impmsg err';};
  rd.readAsText(f);});
 $('#copyCode').onclick=e=>copyText(encodeBook(),e.target,$('#expMsg'),'Playbook code copied. Paste it into a text or email to your staff.');
-$('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\tRoutes\n'+T.book.map(b=>b[0]+'\t'+CATS[b[1]].label+'\t'+FORMS[b[2]].label+'\t'+(b[3]||'')).join('\n'),e.target,$('#expMsg'),'Copied as rows. Paste into a spreadsheet, edit, and paste back to import.');
+$('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\tRoutes\n'+T.book.map(b=>b[0]+'\t'+CATS[b[1]].label+'\t'+FORMS[b[2]].label+'\t'+fmtUser(parseRoutes(b[3]))).join('\n'),e.target,$('#expMsg'),'Copied as rows. Paste into a spreadsheet, edit, and paste back to import.');
 ['Run','Pro','Qb','Skill','Kick','Def'].forEach(k=>{$('#t'+k).addEventListener('input',e=>{T[k.toLowerCase()]=+e.target.value;$('#o'+k).textContent=e.target.value+(k==='Kick'?' yd':'');saveTeam();});});
 $('#tName').addEventListener('input',e=>{T.name=e.target.value||'Your team';saveTeam();});
 $('#tBlitz').addEventListener('change',e=>{T.blitz=e.target.value;saveTeam();});
 $('#tPc').addEventListener('change',e=>{T.pc=+e.target.value;saveTeam();});
-$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;$('#bkN'+i).focus();$('#bkN'+i).select();routeTip(false,$('#bkN'+i));};
+$('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;openBuilder(i,$('#bkN'+i));};
 $('#resetTeam').onclick=()=>{T=JSON.parse(JSON.stringify(SAMPLE));saveTeam();openTeam();};
 const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P')G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
 $('#closeTeam').onclick=closeSheet;
@@ -1539,7 +1726,7 @@ layoutTips();
 /* keep the field tucked under the pinned scoreboard */
 function syncBand(){const b=$('#scoreband');if(b)document.documentElement.style.setProperty('--bandH',b.offsetHeight+'px');}
 try{new ResizeObserver(syncBand).observe($('#scoreband'));}catch(e){addEventListener('resize',syncBand);}
-start(SPOTS[0]);syncBand();
+renderTreeText();start(SPOTS[0]);syncBand();
 })();
 </script>
 
