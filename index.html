@@ -250,7 +250,9 @@ details.terms summary span{display:block;font-weight:400;font-size:12.5px;color:
 .bf span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .bf input,.bf select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 8px;min-width:0;width:100%}
 .bfield{background:var(--turf);border-radius:8px;overflow:hidden;line-height:0}
-.bfield svg{width:100%;height:auto;display:block}
+.bfield svg{width:100%;height:auto;display:block;touch-action:none;cursor:crosshair}
+.stroke{fill:none;stroke:var(--flag);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.bread{font-weight:700;color:var(--ink)}
 .bfield .pick{cursor:pointer}
 .bfield .pick:focus{outline:none}
 .bfield .pick:focus .o-man,.bfield .pick:hover .o-man{stroke:var(--flag);stroke-width:2.5}
@@ -552,10 +554,13 @@ const COMBO={'87':'post-corner','78':'corner-post','19':'wheel','29':'slant-and-
 const SLOTS=['X','H','Y','Z','R'];
 function isRoute(c){return typeof c==='string'&&/^\d{1,2}$/.test(c);}
 function routeName(c){if(c==='S')return'block';if(c==='P')return'pass pro';if(COMBO[c])return COMBO[c];return c.split('').map(d=>TREE[d].n).join('-');}
-function treePts(code,slot){
+function treePts(code,slot,x0){
  if(code==='S')return[[0,1]];
  if(!isRoute(code))return null;
  const sh=slot==='R'?-2:0,a=TREE[code[0]];
+ if(code==='19'){/* flat to the numbers (or 4 outside his split), then up the sideline */
+  const ax=Math.abs(x0||0),w=Math.min(24,Math.max(17,ax+4))-ax;
+  return slot==='R'?[[w*.35,-3],[w*.75,-1.6],[w-1,.4],[w,4],[w+.3,24]]:[[0,1.5],[w*.65,2],[w-1.2,3.5],[w,7],[w+.3,26]];}
  if(slot==='R'&&code==='1')return[[2.5,-3],[9,-1]];
  if(slot==='R'&&code==='0')return[[0,-1.5],[-6,1]];
  if(code.length===1){
@@ -1232,7 +1237,7 @@ function renderFormation(){
   for(const k of['X','H','Y','Z','R','Q']){
    let pts=null,code=null;
    if(ex[k])pts=routePts(P,k,ex[k]);
-   else if(RT[k]&&RT[k]!=='P'){code=RT[k];pts=routePts(P,k,treePts(code,k),'tree');}
+   else if(RT[k]&&RT[k]!=='P'){code=RT[k];pts=routePts(P,k,treePts(code,k,P[k][0]),'tree');}
    if(!pts)continue;geo[k]={pts,code};
    let cls='rt';if(hot)cls+=hot.has(k)?' hot':' dim';
    rtSvg+=poly(pts,cls,maxY,code==='S'?null:'ah');
@@ -1607,14 +1612,14 @@ function renderTreeText(){
  $('#routeTipT').textContent=head;
  $('#routeTipList').textContent=order.map(c=>numOut(c)+' '+TREE[c].n).join(' · ');
  $('#routeTipEx').innerHTML='Two digits make a combo: '+codeOut('87')+' is a post-corner. Write routes by position, like <b>'+esc(ex)+'</b>.';
- $('#treeText').innerHTML='<b style="font-family:var(--f-body);font-weight:700">'+esc(head)+'</b> Depths are from the line of scrimmage: '+order.map(c=>'<b>'+numOut(c)+'</b> '+TREE[c].n+(TREE[c].d?' '+TREE[c].d:'')).join(' · ')+'. Two digits make a combo, like <b>'+codeOut('87')+'</b> post-corner. Write them by position, like <b>'+esc(ex)+'</b>, or tap <b style="font-family:var(--f-body)">Draw</b> to build the play on the field.';
+ $('#treeText').innerHTML='<b style="font-family:var(--f-body);font-weight:700">'+esc(head)+'</b> Depths are from the line of scrimmage: '+order.map(c=>'<b>'+numOut(c)+'</b> '+TREE[c].n+(TREE[c].d?' '+TREE[c].d:'')).join(' · ')+'. Two digits make a combo, like <b>'+codeOut('87')+'</b> post-corner. Write them by position, like <b>'+esc(ex)+'</b>, or tap <b style="font-family:var(--f-body)">Draw</b> and drag each route on the field.';
 }
 
 /* ---------- play builder ---------- */
 let BLD=null;
 function openBuilder(i,ret){
  const b=T.book[i];if(!b)return;
- BLD={i,name:b[0],cat:b[1],form:b[2],routes:parseRoutes(b[3]),sel:'X',ret};
+ BLD={i,name:b[0],cat:b[1],form:b[2],routes:parseRoutes(b[3]),sel:'X',ret,read:''};
  $('#bCat').innerHTML=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
  $('#bForm').innerHTML=Object.entries(FORMS).map(([k,f])=>'<option value="'+k+'">'+f.label+'</option>').join('');
  $('#bName').value=BLD.name;$('#bCat').value=BLD.cat;$('#bForm').value=BLD.form;
@@ -1635,7 +1640,7 @@ function drawPlay(form,cat,routes,sel){
  for(const k of['X','H','Y','Z','R','Q']){
   let pts=null,code=null;
   if(ex[k])pts=routePts(P,k,ex[k]);
-  else if(routes[k]&&routes[k]!=='P'){code=routes[k];pts=routePts(P,k,treePts(code,k),'tree');}
+  else if(routes[k]&&routes[k]!=='P'){code=routes[k];pts=routePts(P,k,treePts(code,k,P[k][0]),'tree');}
   if(!pts)continue;
   rt+=poly(pts,'rt'+(sel&&k!==sel?' dim':sel===k?' hot':''),maxY,code==='S'?null:'bah').replace('url(#ah)','url(#bah)');
   if(isRoute(code)){const e=clampPt(pts[pts.length-1],maxY-.8);nums+='<text class="rnum" x="'+clamp(SX(e[0]),14,526)+'" y="'+(SY(e[1])-7)+'" text-anchor="middle">'+codeOut(code)+'</text>';}
@@ -1650,15 +1655,58 @@ function drawPlay(form,cat,routes,sel){
 function renderBuilder(){
  if(!BLD)return;const eff=bEffective(),run=CATS[BLD.cat].kind==='run',sel=BLD.sel,own=BLD.routes[sel],cur=eff[sel];
  $('#bField').innerHTML=drawPlay(BLD.form,BLD.cat,eff,sel);
- $('#bField').querySelectorAll('.pick').forEach(n=>{const go=()=>{BLD.sel=n.dataset.slot;renderBuilder();};n.addEventListener('click',go);n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});
+ bindDraw();
+ $('#bField').querySelectorAll('.pick').forEach(n=>{const go=()=>{BLD.sel=n.dataset.slot;renderBuilder();};n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});});
  $('#bPos').innerHTML=SLOTS.map(k=>'<button aria-pressed="'+(k===sel)+'" data-p="'+k+'">'+esc(tl(k))+' <span style="opacity:.7">'+(eff[k]?(isRoute(eff[k])?routeName(eff[k]):eff[k]==='S'?'block':eff[k]==='P'?'pass pro':''):'—')+'</span></button>').join('');
- $('#bPos').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.sel=b.dataset.p;renderBuilder();});
+ $('#bPos').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.sel=b.dataset.p;BLD.read='';renderBuilder();});
  const order=Object.keys(TREE).sort((a,b)=>numOut(a)-numOut(b));
  $('#bChips').innerHTML=order.map(c=>'<button aria-pressed="'+(cur===c)+'" data-c="'+c+'"><b>'+numOut(c)+'</b>'+TREE[c].n+'</button>').join('');
- $('#bChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.routes[sel]=b.dataset.c;bNext();});
+ $('#bChips').querySelectorAll('button').forEach(b=>b.onclick=()=>{BLD.routes[sel]=b.dataset.c;BLD.read='';bNext();});
  $('#bBlock').textContent=sel==='R'?'Pass pro':'Block';
- $('#bHint').textContent=run?'Run play: receivers block. Give a receiver a route to show a tag or a pop pass.':'Tap a player, then tap his route. '+tl(sel)+' is '+(cur?(isRoute(cur)?'running a '+routeName(cur)+' ('+codeOut(cur)+')':cur==='S'?'blocking':'in pass pro'):'not set')+(own?'.':' (concept default).');
+ $('#bHint').textContent=run?'Run play: receivers block. Give a receiver a route to show a tag or a pop pass.':BLD.read?BLD.read:'Drag from a player to draw his route, or tap a player and a number. '+tl(sel)+' is '+(cur?(isRoute(cur)?'running a '+routeName(cur)+' ('+codeOut(cur)+')':cur==='S'?'blocking':'in pass pro'):'not set')+(own?'.':' (concept default).');
  $('#bCode').textContent=fmtUser(BLD.routes)||'Using the concept defaults';
+}
+/* ---------- drag to draw: read the stroke and snap it to the route tree ---------- */
+function toField(svg,e){const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const q=pt.matrixTransform(svg.getScreenCTM().inverse());return[(q.x-270)/10,22-q.y/10];}
+function simplify(pts,eps){if(pts.length<3)return pts.slice();const a=pts[0],b=pts[pts.length-1];let mi=0,md=0;const L=Math.hypot(b[0]-a[0],b[1]-a[1])||1e-9;
+ for(let i=1;i<pts.length-1;i++){const p=pts[i];const d=Math.abs((b[1]-a[1])*p[0]-(b[0]-a[0])*p[1]+b[0]*a[1]-b[1]*a[0])/L;if(d>md){md=d;mi=i;}}
+ if(md>eps){const l=simplify(pts.slice(0,mi+1),eps),r=simplify(pts.slice(mi),eps);return l.slice(0,-1).concat(r);}return[a,b];}
+function segClass(dx,dy){const t=Math.atan2(dy,dx)*180/Math.PI;
+ if(t>=65&&t<=115)return'U';if(t>=20&&t<65)return'UO';if(t>115&&t<=160)return'UI';if(t>-20&&t<20)return'O';if(t>160||t<-160)return'I';if(t<=-20&&t>=-90)return'BO';return'BI';}
+function readStroke(slot,raw,form){
+ const P=FORMS[form].pos,st=P[slot],sign=st[0]<0?-1:st[0]>0?1:(P._f||1);
+ const rel=raw.map(p=>[(p[0]-st[0])*sign,p[1]]);
+ const pts=simplify([[0,st[1]]].concat(rel),1.1);
+ const segs=[];for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],dx=b[0]-a[0],dy=b[1]-a[1];if(Math.hypot(dx,dy)<1.4)continue;
+  const c=segClass(dx,dy);if(segs.length&&segs[segs.length-1].c===c){segs[segs.length-1].end=b;}else segs.push({c,start:a,end:b});}
+ if(!segs.length)return null;
+ let stem=0,i=0;if(segs[0].c==='U'){stem=segs[0].end[1];i=1;}
+ const brk=(sg,depth)=>{const e=sg.end[1];switch(sg.c){
+  case'UO':return e<5?'1':'7';case'UI':return depth<5&&e<9?'2':'8';case'O':return depth<5?'1':'5';case'I':return depth<5?'0':'6';case'BO':return'3';case'BI':return'4';default:return'9';}};
+ if(i>=segs.length)return'9';
+ const first=brk(segs[i],i?stem:segs[i].start[1]);
+ if(first==='1'&&pts[pts.length-1][1]>6)return'19';
+ const nx=segs[i+1];if(!nx)return first;
+ const second=nx.c==='U'?'9':brk(nx,nx.start[1]);
+ return second!==first&&second!=='1'&&second!=='0'?first+second:first;
+}
+function bindDraw(){
+ const svg=$('#bField svg');if(!svg)return;let drawing=null;
+ svg.addEventListener('pointerdown',e=>{if(e.button>0)return;const f=toField(svg,e),P=FORMS[BLD.form].pos;
+  let who=BLD.sel,best=3.2;for(const k of SLOTS){const d=Math.hypot(P[k][0]-f[0],(P[k][1]-f[1])*1.4);if(d<best){best=d;who=k;}}
+  drawing={who,pts:[f],moved:0};try{svg.setPointerCapture(e.pointerId);}catch(_){}
+  const g=document.createElementNS('http://www.w3.org/2000/svg','polyline');g.setAttribute('class','stroke');g.id='bStroke';svg.appendChild(g);drawing.el=g;
+  drawing.el.setAttribute('points',SX(P[who][0])+','+SY(P[who][1]));e.preventDefault();});
+ svg.addEventListener('pointermove',e=>{if(!drawing)return;const f=toField(svg,e),l=drawing.pts[drawing.pts.length-1];
+  const d=Math.hypot(f[0]-l[0],f[1]-l[1]);if(d<.35)return;drawing.moved+=d;drawing.pts.push(f);
+  const P=FORMS[BLD.form].pos[drawing.who];drawing.el.setAttribute('points',[[P[0],P[1]]].concat(drawing.pts).map(q=>SX(q[0])+','+SY(q[1])).join(' '));});
+ const end=e=>{if(!drawing)return;const d=drawing;drawing=null;
+  if(d.moved<2){BLD.sel=d.who;BLD.read='';renderBuilder();return;}
+  const code=readStroke(d.who,d.pts,BLD.form);BLD.sel=d.who;
+  if(!code){BLD.read='Draw a little longer so the route can be read.';renderBuilder();return;}
+  BLD.routes[d.who]=code;BLD.read='Read as '+tl(d.who)+' '+routeName(code)+' ('+codeOut(code)+'). Not right? Tap the correct number or redraw.';
+  renderBuilder();};
+ svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',()=>{drawing=null;renderBuilder();});
 }
 function bNext(){const i=SLOTS.indexOf(BLD.sel);if(i<SLOTS.length-1)BLD.sel=SLOTS[i+1];renderBuilder();}
 $('#bName').addEventListener('input',e=>{BLD.name=e.target.value||'Play';});
