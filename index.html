@@ -608,9 +608,11 @@ function afterContact(r,open,short,behind,room,adj){
  if(open&&r()<.022+.012*sk-.008*dd+.02*bt){y+=12-Math.log(1-r())*16;}
  return{y,bt};
 }
-/* calibration to real high school results: 9,263 snaps from Hudl tendency reports
-   (Hayward and Garden Grove offenses and their opponents, 2023-2025): 5.5 yards per run, 7.8 yards per pass play */
-const CAL={run:.96,yac:1.6,comp:-.05,big:.035};
+/* calibration to real high school results:
+   9,263 snaps from Hudl tendency reports (Hayward and Garden Grove offenses and opponents, 2023-2025): 5.5 yards per run, 7.8 per pass play.
+   1,623 play-by-play snaps from 16 Hayward games: runs 5.6 a carry, 22% for no gain or a loss, 19% go 10+, 5% go 20+;
+   passes 59% complete, 4.5% intercepted, 3.5% sacked, 12.2 yards a completion, 10% of pass plays go 20+. */
+const CAL={run:.9,runsd:1.3,runbig:.025,fum:.7,yac:1.45,comp:-.08,big:.02,int:.045,sack:.8};
 const ROOB={0:.05,1:.35,2:.05,3:.55,4:.05,5:.7,6:.05,7:.5,8:.05,9:.25};
 /* default routes for each concept type, used when a play has no routes of its own */
 const CONCEPT={
@@ -752,13 +754,14 @@ function simPlay(cat,s,look,r,tgt,form,routes){
  const b=CATS[cat],m=mt(look,cat),F=FORMS[form]||FORMS.doubles,rr=T.run-3,pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
  const o={cat,type:'run',y:0,oob:false,dur:5,tgt:tgt||'auto'};
  if(b.kind==='run'){
-  let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd)*CAL.run,sd=b.sd;
+  let mean=b.mean*m.y*F.run*(1+.12*rr)*(1-.09*dd)*CAL.run,sd=b.sd*CAL.runsd;
   if(s.ytg<=4&&cat!=='sneak'){mean*=.75;sd*=.7;}
   sd*=m.sd;
   const contact=mean+sd*gauss(r);
   const ac=afterContact(r,contact>=5,cat==='sneak'||s.ytg<=2,contact<0,null,{c0:-.08,c1:-.045,c2:.03}[look]||0);
   let y=Math.round(Math.max(-5,contact+ac.y*CAL.run));
-  if(r()<b.fum*(1+.25*ac.bt)){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
+  if(contact>0&&r()<CAL.runbig*(1+.25*rr)*(m.y>=1?1:.6))y+=Math.round(10-Math.log(1-r())*12);
+  if(r()<b.fum*CAL.fum*(1+.25*ac.bt)){o.type='fum';o.y=clamp(y,0,s.ytg-1);o.dur=6;return o;}
   o.y=y;o.bt=ac.bt;o.oob=r()<b.oob;o.dur=5+Math.max(0,y)/12;return o;
  }
  if(b.kind==='hail'){
@@ -795,7 +798,7 @@ const COV={
  c4:{0:[.5,.5],1:[.64,.62],2:[.4,.42],3:[.6,.55],4:[.65,.6],5:[.45,.45],6:[.66,.66],7:[.38,.38],8:[.38,.38],9:[.28,.3]}
 };
 /* squatting defenders: extra interception risk by route vs coverage. High school DBs rarely jump routes otherwise. */
-const INTR={c0:{},c1:{8:.02,9:.015},c2:{0:.05,1:.035,2:.04,5:.035},c3:{8:.02,9:.015},c4:{2:.025,5:.02,9:.015}};
+const INTR={c0:{},c1:{8:.02,9:.015},c2:{0:.04,1:.025,2:.03,5:.03},c3:{8:.02,9:.015},c4:{2:.025,5:.02,9:.015}};
 const TIMEQ={0:1.8,1:1.6,2:1.4,3:2.5,4:2.4,5:2.4,6:2.7,7:2.9,8:2.9,9:2.8};
 const PRESS={c0:.36,c1:.16,c2:.05,c3:.06,c4:.05};
 const ROOMK={c0:1.4,c1:1.15,c2:.6,c3:1,c4:.9};
@@ -807,7 +810,7 @@ function readCoverage(routes,P,look,s){
   let open=base+(k==='R'?.08:0)+(c.length===2?DMOVE[look]:0);
   let time=TIMEQ[L]+(k==='R'?.2:0)+(c.length===2?.8:0);
   if(s.ytg<=12&&TREE[L].deep)open-=.08;
-  out[k]={k,c,L,ins,open,time,int:(INTR[look][L]||0)+.006,hit:false};
+  out[k]={k,c,L,ins,open,time,int:(INTR[look][L]||0)+CAL.int,hit:false};
   (x<0||(x===0&&(P._f||1)<0)?by.L:by.R).push(k);}
  const B=(k,v)=>{if(out[k])out[k].open+=v;},I=(k,v)=>{if(out[k])out[k].int+=v;};
  for(const side of[by.L,by.R]){
@@ -841,7 +844,7 @@ function readCoverage(routes,P,look,s){
 function qbRead(rd,look,s,r){
  const qq=T.qb-3,tp={c0:.12,c1:.05}[look]||.02;let best=null,bv=-9;
  const late=s.obj==='win'&&s.margin<0&&s.TO===0&&s.t<=60;
- for(const k in rd){const o=rd[k];let v=o.open+gauss(r)*.16*(1-.15*qq)-tp*Math.max(0,o.time-1.5)-o.int*2;
+ for(const k in rd){const o=rd[k];let v=o.open+gauss(r)*.16*(1-.15*qq)-tp*Math.max(0,o.time-1.5)-(o.int-CAL.int)*2;
   if(late&&TREE[o.L].side==='out')v+=.06;if(v>bv){bv=v;best=k;}}
  return best;
 }
@@ -855,7 +858,7 @@ function simRoutePass(cat,s,look,r,tgt,F,routes,o){
  if(!key)key=Object.keys(tg).find(k=>tg[k]===slot)||'auto';
  const q=rd[slot],rc=q.c,L=q.L;
  o.tgt=key;o.slot=slot;o.rc=rc;
- const sackP=PRESS[look]*clamp((q.time-1.2)/1.4,0,1.7)*F.sack*(1-.17*pp)*(1+.1*dd)*(routes.R==='P'?.8:1);
+ const sackP=CAL.sack*PRESS[look]*clamp((q.time-1.2)/1.4,0,1.7)*F.sack*(1-.17*pp)*(1+.1*dd)*(routes.R==='P'?.8:1);
  if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
  let cy=Math.min(catchDepth(rc,r,slot),s.ytg+8);o.cy=cy;
  const hurry=(look==='c0'||look==='c1')?Math.max(0,q.time-2.2)*(look==='c0'?.12:.06):0;
