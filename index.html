@@ -777,6 +777,7 @@ function simPlay(cat,s,look,r,tgt,form,routes){
   if(x<.16+(.09+.02*qq)*reach){o.type='comp';o.y=s.ytg;o.dur=8;return o;}
   o.type='inc';o.dur=8;return o;
  }
+ if(cat==='screen')o.slot='H';
  if(passable(cat)&&cat!=='hail')return simRoutePass(cat,s,look,r,tgt,F,routes||CONCEPT[cat],o);
  const sackP=b.sack*m.s*F.sack*(1-.17*pp)*(1+.1*dd);
  if(r()<sackP){o.type='sack';o.y=-Math.round(4+r()*5);o.dur=6;return o;}
@@ -1267,7 +1268,7 @@ function narrate(name,act,e,sb){
  if(act==='punt')return'Punt. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(act==='kneel')return'Victory formation. Into the half.';
  const o=e.o;if(!o)return name;
- const tw=o.slot&&o.rc?' to the '+tl(o.slot)+' on the '+routeName(o.rc)+' ('+codeOut(o.rc)+')':'';
+ const tw=o.slot&&o.rc?' to the '+tl(o.slot)+' on the '+routeName(o.rc)+' ('+codeOut(o.rc)+')':o.slot&&act==='screen'?' to the '+tl(o.slot)+' on the screen':'';
  if(o.type==='int')return name+': intercepted'+(tw?' going'+tw:'')+'. Their ball at '+oppSpot(e.oppYtg)+'.';
  if(o.type==='fum')return name+(o.hit?': '+(tw?'caught'+tw+', ':'')+'blown up by the defender sitting underneath and the ball comes out. Defense recovers.':': fumble, recovered by the defense.');
  if(e.end==='td')return name+': TOUCHDOWN'+tw+', '+o.y+' yards'+(o.bt?', '+(o.bt===1?'broke a tackle':'broke '+o.bt+' tackles'):'')+'.';
@@ -1344,7 +1345,16 @@ function catchPt(pts,code,cy){
  return b;
 }
 function clampPt(p,maxY){return[clamp(p[0],-25.5,25.5),clamp(p[1],-10.5,maxY)];}
-function poly(pts,cls,maxY,marker){return'<polyline class="'+cls+'" points="'+pts.map(p=>{const q=clampPt(p,maxY);return SX(q[0])+','+SY(q[1]);}).join(' ')+'"'+(marker?' marker-end="url(#'+marker+')"':'')+'/>';}
+/* cut a path where it leaves the top of the view, so what is drawn is the real route */
+function clipPts(pts,maxY){
+ const out=[pts[0]];
+ for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];
+  if(b[1]<=maxY){out.push(b);continue;}
+  if(a[1]<maxY){const u=(maxY-a[1])/(b[1]-a[1]);out.push([a[0]+(b[0]-a[0])*u,maxY]);}
+  break;}
+ return out;
+}
+function poly(pts,cls,maxY,marker){return'<polyline class="'+cls+'" points="'+clipPts(pts,maxY).map(p=>{const q=clampPt(p,maxY);return SX(q[0])+','+SY(q[1]);}).join(' ')+'"'+(marker?' marker-end="url(#'+marker+')"':'')+'/>';}
 function renderFormation(){
  const s=G.s,el=$('#fview');
  let form='doubles',cat=null,look=null,mode='base',ytg=s.ytg,dist=s.dist,tg=null;
@@ -1420,17 +1430,18 @@ function renderFormation(){
    } else if(o.type==='sack'){path=[P.Q,[P.Q[0],o.y]];lab='SACK';}
    else{
     const slot=o.slot||(cat==='screen'?'H':'Z'),gp=geo[slot];
-    const cp=gp?(isRoute(gp.code)?catchPt(gp.pts,gp.code,o.cy!=null?o.cy:catchMean(gp.code,slot)):gp.pts[gp.pts.length-1]):[0,Math.max(1,gain)];
+    let cp=gp?(isRoute(gp.code)?catchPt(gp.pts,gp.code,o.cy!=null?o.cy:catchMean(gp.code,slot)):gp.pts[gp.pts.length-1]):[0,Math.max(1,gain)];
+    if(gp&&cp[1]>maxY){const vis=clipPts(gp.pts,maxY);cp=vis[vis.length-1];}
     if(o.type==='inc'){path=[P.Q,cp];lab='INC';}
     else if(o.type==='int'){path=[P.Q,cp];lab='INT';}
     else{path=[P.Q,cp,[cp[0],gain]];lab=(gain>=0?'+':'')+gain;}
    }
    if(G.last.e.end==='td')lab='TD';
    g+=poly(path,'bpath',maxY,null);
-   const e=clampPt(path[path.length-1],maxY);
+   const cl=clipPts(path,maxY),e=clampPt(cl[cl.length-1],maxY);
    g+='<text class="endlab" x="'+clamp(SX(e[0])+16,20,470)+'" y="'+(SY(e[1])+8)+'">'+lab+'</text>';
    g+='<ellipse class="f-ball" id="aball" cx="'+SX(path[0][0])+'" cy="'+SY(path[0][1])+'" rx="7" ry="5"/>';
-   anim=path.map(p=>clampPt(p,maxY));
+   anim=clipPts(path,maxY).map(p=>clampPt(p,maxY));
   }
  } else if(mode==='special'){
   const lab={fg:G.last.e.end==='fg'?'FIELD GOAL GOOD':G.last.e.end==='time'?'TIME EXPIRED':'NO GOOD',punt:'PUNT',kneel:'KNEEL'}[G.last.special];
