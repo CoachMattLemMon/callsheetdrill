@@ -1,6 +1,6 @@
 // Call Sheet Drill offline cache. Bump VERSION whenever index.html changes.
-const VERSION = 'csd-v14';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+const VERSION = 'csd-v15';
+const SHELL = ['./', './index.html', './logger/', './logger/index.html', './logger/manifest.webmanifest', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
@@ -21,10 +21,12 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (url.origin !== location.origin) return;
-  // Pages: try the network for updates, fall back to the cached game offline
+  // Pages: try the network for updates, fall back to the cached page offline
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', copy)); return r; })
-      .catch(() => caches.match('./index.html')));
+    // each app keeps its own offline copy: the drill at ./, Booth Log at ./logger/
+    const key = /\/logger(\/|$)/.test(url.pathname) ? './logger/index.html' : './index.html';
+    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(key, copy)); return r; })
+      .catch(() => caches.match(key)));
     return;
   }
   e.respondWith(caches.match(req).then(hit => hit || fetch(req)));

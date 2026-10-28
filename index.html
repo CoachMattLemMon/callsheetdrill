@@ -480,6 +480,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="fld"><label for="tKick">Kicker range <output id="oKick"></output></label><input type="range" id="tKick" min="20" max="50" step="1"><span class="help">The longest kick that's about a coin flip. 20 means no reliable kicker.</span></div>
       <div class="fld"><label for="tDef">Opponent defense <output id="oDef"></output></label><input type="range" id="tDef" min="1" max="5" step="1"></div>
       <div class="fld"><label for="tBlitz">Opponent pressure</label><select id="tBlitz"><option value="low">Rarely blitzes</option><option value="med">Average</option><option value="high">Blitz-heavy</option></select></div>
+      <div class="fld" style="grid-column:1/-1"><label for="tOpp">Opponent tendencies</label><select id="tOpp"></select><span class="help" id="oppHelp"></span></div>
       <div class="fld"><label for="tPc">Play clock</label><select id="tPc"><option value="40">40 seconds</option><option value="25">25 seconds</option></select></div>
     </div>
     <details class="terms" id="termsBox">
@@ -805,7 +806,28 @@ function lookW(s){
  else if(s.ytg<=20)w={c0:.15,c1:.3,c3:.25,c2:.15,c4:.15};
  else if(s.dist>=7||(s.t<=120&&s.obj==='win'&&s.margin<0))w={c0:.06,c1:.12,c2:.3,c3:.27,c4:.25};
  else w={c0:.1,c1:.2,c2:.2,c3:.3,c4:.2};
+ const ob=oppBucket(s);if(ob)return oppMix(ob,w);
  w.c0*=bm;w.c1*=Math.sqrt(bm);return w;
+}
+/* ---------- opponent tendencies charted in Booth Log (same site, saved on this device) ---------- */
+const COVS=['c0','c1','c2','c3','c4'];
+function oppProfile(){const st=load('csd-opp',null);return st&&st.active&&st.profiles&&st.profiles[st.active]||null;}
+let OPP=oppProfile();
+/* the bucket that matches this snap; a bucket needs 4 charted snaps, otherwise the opponent's overall mix */
+function oppBucket(s){
+ if(!OPP||!OPP.sit)return null;const ok=b=>b&&b.n>=4?b:null;
+ const dn=s.down||1,ds=s.dist??10;
+ const dd=dn===1?'1st':dn>=4?'4th':(dn===2?'2nd':'3rd')+'-'+(ds>=7?'long':ds>=4?'med':'short');
+ return (s.ytg<=20&&ok(OPP.sit.redzone))||(s.ytg>=90&&ok(OPP.sit.backed))||ok(OPP.sit[dd])||ok(OPP.all);
+}
+/* charted counts plus two snaps' worth of the normal look, so a coverage they never showed stays possible but rare */
+function oppMix(b,base){let tot=0;for(const k of COVS)tot+=base[k]||0;tot=tot||1;const w={};for(const k of COVS)w[k]=(b[k]||0)+2*(base[k]||0)/tot;return w;}
+function formFamily(form){
+ const k=String(form||'').replace(/L$/,'');const m={doubles:'2x2',pistol:'2x2',twins:'2x2',trips:'3x1',empty:'empty',pro:'2-back',bunch:'bunch'};
+ if(m[k])return m[k];const f=FORMS[k];if(!f||!f.pos)return null;
+ const pts=['X','H','Y','Z','R'].map(x=>f.pos[x]).filter(Boolean),line=pts.filter(p=>p[1]>-2.6),backs=pts.filter(p=>p[1]<=-2.6);
+ if(!backs.length)return'empty';if(backs.length>=3)return'3-back';if(backs.length>=2)return'2-back';
+ return Math.max(line.filter(p=>p[0]<-4).length,line.filter(p=>p[0]>4).length)>=3?'3x1':'2x2';
 }
 function simPlay(cat,s,look,r,tgt,form,routes){
  const b=CATS[cat],m=mt(look,cat),F=FORMS[form]||FORMS.doubles,rr=T.run-3,pp=T.pro-3,qq=T.qb-3,dd=T.def-3;
@@ -1185,6 +1207,9 @@ function start(sp){
 function sampleLook(){if(G.firstLook){const l=G.firstLook;G.firstLook=null;return l;}return pick(lookW(G.s),realR);}
 /* the defense adjusts to the formation: empty draws pressure, heavy sets draw a safety down, trips and bunch draw rotation and quarters */
 function formAdj(w,form){const b=String(form||'').replace(/L$/,'');
+ /* a charted opponent: blend the situation's mix with how they actually played this formation family */
+ const fb=OPP&&OPP.fam&&OPP.fam[formFamily(form)];
+ if(fb&&fb.n>=4){let a=0,c=0;for(const k of COVS){a+=w[k]||0;c+=fb[k]||0;}const o={};for(const k of COVS)o[k]=.5*(w[k]||0)/(a||1)+.5*((fb[k]||0)+.5)/(c+2.5);return o;}
  const m={empty:{c0:1.6,c1:1.4,c2:.8},pro:{c1:1.3,c3:1.3,c2:.7,c4:.8},twins:{c1:1.15,c3:1.2,c2:.85},trips:{c3:1.2,c4:1.15,c2:.85},bunch:{c3:1.15,c4:1.2,c1:.85}}[b]||{};
  const o={...w};for(const k in m)o[k]=(o[k]||0)*m[k];return o;}
 function lookFromU(w,u){const ks=['c0','c1','c2','c3','c4'];let tot=0;for(const k of ks)tot+=w[k]||0;let x=u*tot;for(const k of ks){x-=w[k]||0;if(x<=0)return k;}return'c3';}
@@ -1620,7 +1645,7 @@ function renderFeed(){
  const t=G.feeds[G.feeds.length-1].text;
  el.innerHTML=(t&&!(G.phase==='result'&&drawerMode())?'<p class="result">'+esc(t)+'</p>'+(G.usual?'<p class="usual">'+G.usual+'</p>':''):'')+'<div class="grades">'+G.feeds.map(feedCard).join('')+'</div>';
 }
-function lookChip(){return'<span class="look">Defense shows: '+LOOKS[G.look].label+'</span>';}
+function lookChip(){return'<span class="look">Defense shows: '+LOOKS[G.look].label+(OPP?' · '+esc(OPP.name)+' tendencies':'')+'</span>';}
 function renderDecide(){
  const el=$('#decide'),s=G.s;
  if(G.phase==='busy'){el.innerHTML='<div class="busy"><i></i>Playing out every option a few hundred times…</div>';return;}
@@ -1693,7 +1718,7 @@ function renderLog(){
 /* ================= team sheet ================= */
 function openTeam(){
  $('#tName').value=T.name;['Run','Pro','Qb','Skill','Kick','Def'].forEach(k=>{const key=k.toLowerCase();$('#t'+k).value=T[key];$('#o'+k).textContent=T[key]+(k==='Kick'?' yd':'');});
- $('#tBlitz').value=T.blitz;$('#tPc').value=String(T.pc);renderBook();renderFormList();renderExport();renderPreview();renderTerms();renderTreeText();$('#sheet').hidden=false;$('#tName').focus();
+ $('#tBlitz').value=T.blitz;$('#tPc').value=String(T.pc);renderOpp();renderBook();renderFormList();renderExport();renderPreview();renderTerms();renderTreeText();$('#sheet').hidden=false;$('#tName').focus();
 }
 function renderBook(){
  const co=Object.entries(CATS).map(([k,c])=>'<option value="'+k+'">'+c.label+'</option>').join('');
@@ -2057,6 +2082,15 @@ $('#copyCsv').onclick=e=>copyText('Play\tConcept\tFormation\tRoutes\n'+T.book.ma
 $('#tName').addEventListener('input',e=>{T.name=e.target.value||'Your team';saveTeam();});
 $('#tBlitz').addEventListener('change',e=>{T.blitz=e.target.value;saveTeam();});
 $('#tPc').addEventListener('change',e=>{T.pc=+e.target.value;saveTeam();});
+function renderOpp(){
+ const st=load('csd-opp',null),ps=st&&st.profiles?Object.values(st.profiles).sort((a,b)=>(b.updated||0)-(a.updated||0)):[];
+ const sel=$('#tOpp');sel.innerHTML='<option value="">Normal defenses</option>'+ps.map(p=>'<option value="'+esc(p.key)+'"'+(st.active===p.key?' selected':'')+'>Play like '+esc(p.name)+' ('+p.snaps+' snaps)</option>').join('');
+ const a=OPP;$('#oppHelp').innerHTML=a?'The defense picks coverages from '+esc(a.name)+'\'s charted snaps by down, distance, field zone and formation. The pressure setting above is ignored while this is on.':ps.length?'Pick an opponent you charted in Booth Log.':'Chart an opponent in <a href="logger/">Booth Log</a> on this device, tap Send to drill, and they show up here.';
+ $('#tBlitz').disabled=!!a;
+}
+$('#tOpp').addEventListener('change',e=>{const st=load('csd-opp',null)||{v:1,profiles:{},active:null};st.active=e.target.value||null;save('csd-opp',st);OPP=oppProfile();renderOpp();});
+addEventListener('storage',e=>{if(e.key==='csd-opp'){OPP=oppProfile();if(!$('#sheet').hidden)renderOpp();}});
+addEventListener('pageshow',()=>{OPP=oppProfile();});
 $('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;openBuilder(i,$('#bkN'+i));};
 $('#resetTeam').onclick=()=>{T=JSON.parse(JSON.stringify(SAMPLE));applyForms();saveTeam();openTeam();};
 const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P')G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
