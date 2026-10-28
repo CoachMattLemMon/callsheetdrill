@@ -182,6 +182,14 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
 
   <main id="v-set" class="wrap" hidden>
     <section class="card">
+      <h2>Paste your sheet</h2>
+      <p class="sub">Paste your formations, plays and motions from a doc, notes or a spreadsheet. Label each group, or just paste and fix the guesses before you save.</p>
+      <textarea id="pasteBox" rows="6" spellcheck="false" aria-label="Your formations, plays and motions" style="width:100%;border:2px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);font-size:16px;line-height:1.4;resize:vertical" placeholder="Formations: Gun Trey, Rex, Ace, Deuce, Tank&#10;Plays: Duo, Power, Stick, Mesh, Y Cross&#10;Motions: Zap, Zoom, Jet, Orbit"></textarea>
+      <div class="row"><button class="btn primary" id="pasteRead" type="button">Read my sheet</button><label class="btn" for="pasteFile" style="display:inline-flex;align-items:center">Upload a file</label><input type="file" id="pasteFile" accept=".txt,.csv,.tsv,text/plain,text/csv" hidden></div>
+      <div class="hint" id="pasteMsg" role="status"></div>
+      <div id="pastePrev"></div>
+    </section>
+    <section class="card">
       <h2>My terms</h2>
       <p class="sub">Booth Log listens for these names. Your Call Sheet Drill plays and formations are already included.</p>
       <div class="row">
@@ -413,6 +421,57 @@ function parseCall(text, dict, prev){
   if (nt) o.weakness = nt[1].trim();
   return o;
 }
+/* a pasted sheet -> [{kind, name, sub}] ; labeled groups ("Formations:", "Plays", "Motions:") or a bare list */
+function guessFamily(n){
+  n = " " + n.toLowerCase() + " ";
+  if (/\b(trips|trey|trio|tre|3x1|trey|triple)\b/.test(n)) return "3x1";
+  if (/\b(empty|quads|5 wide|five wide|psycho)\b/.test(n)) return "empty";
+  if (/\b(bunch|stack|cluster|nub bunch)\b/.test(n)) return "bunch";
+  if (/\b(wing t|wishbone|bone|full house|power i wing|double wing|t formation|diamond)\b/.test(n)) return "3-back";
+  if (/\b(pro|i form|i-form|split|offset|power i|i)\b/.test(n)) return "2-back";
+  if (/\b(unbalanced|over|nasty)\b/.test(n)) return "unbalanced";
+  if (/\b(doubles|double|dubs|ace|deuce|spread|pistol|twins|2x2|duo set|gun)\b/.test(n)) return "2x2";
+  return null;
+}
+function guessType(n){
+  const l = n.toLowerCase();
+  if (BASE_PLAYS[l]) return BASE_PLAYS[l];
+  if (/screen|bubble|tunnel|jailbreak|swing/.test(l)) return "screen";
+  if (/\bboot|naked|play[\s-]?action|\bpa\b|\bbootleg/.test(l)) return "play-action";
+  if (/\brpo\b|glance|read/.test(l)) return "rpo";
+  if (/\bqb\b|sneak/.test(l)) return "qb-run";
+  for (const k of Object.keys(BASE_PLAYS).sort((a,b)=>b.length-a.length)) if (new RegExp("\\b"+namePat(k)+"\\b").test(l)) return BASE_PLAYS[k];
+  return null;
+}
+function parseSheet(text){
+  const out = [], seen = new Set();
+  let kind = null;
+  const HEAD = /^\s*(formations?|forms?|sets?|personnel groupings?|plays?|run game|runs?|pass game|passes|pass(?:ing)? concepts?|concepts?|rpos?|screens?|motions?|tags?|shifts?)\s*(?:[:\-–—]|$)\s*/i;
+  const kindOf = h => { h = h.toLowerCase();
+    if (/^(formation|form|set|personnel)/.test(h)) return "form";
+    if (/^(motion|tag|shift)/.test(h)) return "tag";
+    return "play"; };
+  for (let line of String(text).replace(/\r/g,"").split("\n")){
+    line = line.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/,"");
+    const h = line.match(HEAD);
+    if (h){ kind = kindOf(h[1]); line = line.slice(h[0].length); }
+    // a spreadsheet row "name, type" or "name<TAB>type": keep only the first cell when the rest names a kind
+    const cells = line.split(/\t/);
+    const parts = cells.length > 1 ? [cells[0]] : line.split(/[,;|]/);
+    if (cells.length > 1){ const k2 = (cells[1]||"").toLowerCase();
+      if (/formation|set/.test(k2)) kind = kind || "form"; else if (/motion|tag/.test(k2)) kind = kind || "tag"; }
+    for (let raw of parts){
+      const name = raw.replace(/[“”"]/g,"").replace(/\s+/g," ").trim();
+      if (name.length < 2 || name.length > 40) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue; seen.add(key);
+      let k = kind;
+      if (!k){ const f = guessFamily(name), lk = key in BASE_FORMS; k = (lk || (f && !guessType(name))) ? "form" : /motion|jet|orbit|zip|zap|zoom|rocket|fly|shift/.test(key) && !BASE_PLAYS[key] ? "tag" : "play"; }
+      out.push({kind:k, name, sub: k==="form" ? (BASE_FORMS[key] || guessFamily(name)) : k==="play" ? guessType(name) : null});
+    }
+  }
+  return out;
+}
 function splitDrive(t){ return t.split(/\bnew[\s.,-]*play\b[\s.,;:!?-]*/i).map(x=>x.replace(/^[\s.,;:!?-]+|[\s.,;:!?-]+$/g,"")).filter(x=>x.length>2); }
 /*PARSER-END*/
 </script>
@@ -482,11 +541,12 @@ function famFromPos(pos){
 }
 function dictNow(){
   const d = drillTerms();
-  return {
-    forms: {...BASE_FORMS, ...d.forms, ...MYTERMS.forms},
-    plays: {...BASE_PLAYS, ...d.plays, ...MYTERMS.plays},
-    tags: [...new Set([...BASE_TAGS, ...(MYTERMS.tags||[])])]
-  };
+  const forms = {...BASE_FORMS, ...d.forms, ...MYTERMS.forms}, plays = {...BASE_PLAYS, ...d.plays, ...MYTERMS.plays};
+  // the coach's own grouping wins: a name they saved as a motion is never heard as a play, and so on
+  for (const t of (MYTERMS.tags||[])){ delete plays[t]; delete forms[t]; }
+  for (const f in MYTERMS.forms) if (!(f in MYTERMS.plays)) delete plays[f];
+  for (const p in MYTERMS.plays) if (!(p in MYTERMS.forms)) delete forms[p];
+  return { forms, plays, tags: [...new Set([...BASE_TAGS, ...(MYTERMS.tags||[])])] };
 }
 
 /* ---------- football math ---------- */
@@ -840,6 +900,48 @@ $("#feed").onclick = e => {
   else if (act==="del"){ b.parentElement.querySelector('[data-act="delyes"]').hidden = false; }
   else if (act==="delyes"){ delete DATA.plays[gid][b.dataset.id]; editing=null; saveData(); render(); }
 };
+/* paste a whole sheet: read, show guesses, save */
+let PASTE = [];
+function subOpts(kind, sel){
+  if (kind==="tag") return "";
+  const list = kind==="form" ? FAMILIES : PTYPES;
+  return `<option value="">${kind==="form"?"Pick a family":"Pick a type"}</option>` + list.map(([v,t])=>`<option value="${v}" ${v===sel?"selected":""}>${esc(t)}</option>`).join("");
+}
+function renderPaste(){
+  const el = $("#pastePrev");
+  if (!PASTE.length){ el.innerHTML = ""; return; }
+  const n = k => PASTE.filter(x=>x.kind===k).length;
+  el.innerHTML = `<div class="hint" style="margin-bottom:6px">${n("form")} formations · ${n("play")} plays · ${n("tag")} motions/tags. Fix anything that's in the wrong group, then save.</div>`
+    + PASTE.map((x,i)=>`<div class="term" style="flex-wrap:wrap">
+      <span style="flex:1 1 140px;min-width:0"><b>${esc(x.name)}</b></span>
+      <select data-pk="${i}" aria-label="Group for ${esc(x.name)}" class="btn" style="height:36px;padding:0 6px"><option value="form" ${x.kind==="form"?"selected":""}>Formation</option><option value="play" ${x.kind==="play"?"selected":""}>Play</option><option value="tag" ${x.kind==="tag"?"selected":""}>Motion / tag</option></select>
+      <select data-ps="${i}" aria-label="Family or type for ${esc(x.name)}" class="btn" style="height:36px;padding:0 6px" ${x.kind==="tag"?"hidden":""}>${subOpts(x.kind, x.sub)}</select>
+      <button class="linkbtn" data-px="${i}" type="button">Remove</button></div>`).join("")
+    + `<div class="row" style="margin-top:8px"><button class="btn primary" id="pasteSave" type="button">Save all ${PASTE.length}</button><button class="btn ghost" id="pasteCancel" type="button">Cancel</button></div>`;
+}
+function readPaste(text){
+  PASTE = parseSheet(text);
+  $("#pasteMsg").textContent = PASTE.length ? "" : "Nothing to read yet. Paste names separated by commas or one per line.";
+  renderPaste();
+}
+$("#pasteRead").onclick = () => readPaste($("#pasteBox").value);
+$("#pasteFile").onchange = async e => { const f = e.target.files[0]; if (!f) return; const t = await f.text(); $("#pasteBox").value = t; readPaste(t); e.target.value = ""; };
+$("#pastePrev").addEventListener("change", e => {
+  const k = e.target.dataset.pk, s = e.target.dataset.ps;
+  if (k!=null){ const x = PASTE[+k]; x.kind = e.target.value; x.sub = x.kind==="form" ? guessFamily(x.name) : x.kind==="play" ? guessType(x.name) : null; renderPaste(); }
+  if (s!=null){ PASTE[+s].sub = e.target.value || null; }
+});
+$("#pastePrev").addEventListener("click", e => {
+  if (e.target.dataset.px!=null){ PASTE.splice(+e.target.dataset.px, 1); renderPaste(); return; }
+  if (e.target.id==="pasteCancel"){ PASTE = []; renderPaste(); return; }
+  if (e.target.id==="pasteSave"){
+    let n = 0; for (const x of PASTE) if (addTerm(x.kind, x.name, x.sub)) n++;
+    // plays already logged pick up the families just set
+    for (const ps of Object.values(DATA.plays)) for (const p of Object.values(ps)) if (p.formation && !p.family){ const b = p.formation.toLowerCase().replace(/\s+(right|left)$/,""); if (MYTERMS.forms[b]) p.family = MYTERMS.forms[b]; }
+    saveData(); PASTE = []; $("#pasteBox").value = ""; renderPaste(); renderTerms();
+    $("#pasteMsg").textContent = "Saved " + n + " names. Booth Log listens for them from your next drive.";
+  }
+});
 $("#addKind").onchange = renderTerms;
 $("#addTerm").onclick = () => { if (addTerm($("#addKind").value, $("#addName").value, $("#addSub").value)) { $("#addName").value=""; renderTerms(); } else $("#addName").focus(); };
 $("#termList").onclick = e => {
