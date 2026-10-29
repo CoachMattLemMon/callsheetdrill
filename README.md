@@ -14,5 +14,9 @@ Talk each snap into the phone's keyboard dictation, say "new play" between plays
 
 **Send to drill** saves that opponent's tendencies on the device; in Call Sheet Drill, **Team setup → Opponent tendencies** makes the defense play like them. Booth Log also recognizes the plays and formations from your Call Sheet Drill call sheet on the same device.
 
+## Game plan
+
+**Game plan** (next to Team setup) sets the week: run and blitz checks, what each coverage calls for, situational calls, the plays in the plan and players to attack, with optional Hudl links. **Copy link for players** sends it to the team; players get the plan and 12 reps against the opponent's charted tendencies, each with Check run, Check blitz and three plan calls, graded on making the plan's call and on how the call did. The **Coach report** tab adds the tendency tables and charted weaknesses.
+
 ## Updating
 Edit `index.html` or `logger/index.html`, then bump `VERSION` in `sw.js` (csd-v1 → csd-v2) so installed copies update.
