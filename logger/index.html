@@ -223,19 +223,19 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
 const FAMILIES = [["2x2","2x2 (doubles)"],["3x1","3x1 (trips)"],["empty","Empty"],["2-back","2-back (I, split)"],["3-back","3-back (wing-T, wishbone)"],["bunch","Bunch / stack"],["unbalanced","Unbalanced"]];
 const PTYPES = [["run","Run"],["pass","Pass"],["rpo","RPO"],["screen","Screen"],["play-action","Play action"],["qb-run","QB run"],["other","Other"]];
 const BASE_FORMS = {
-  "doubles":"2x2","ace":"2x2","deuce":"2x2","2x2":"2x2","spread":"2x2","pistol":"2x2","twins":"2x2","double":"2x2","dubs":"2x2",
+  "doubles":"2x2","ace":"2x2","deuce":"2x2","2x2":"2x2","spread":"2x2","pistol":"2x2","twins":"2x2","dubs":"2x2",
   "trips":"3x1","trey":"3x1","trio":"3x1","3x1":"3x1","tre":"3x1",
   "empty":"empty","quads":"empty",
   "pro":"2-back","pro i":"2-back","i form":"2-back","i formation":"2-back","i-form":"2-back","split back":"2-back","split backs":"2-back","pro set":"2-back","offset i":"2-back","power i":"2-back",
   "wing t":"3-back","wishbone":"3-back","full house":"3-back","t formation":"3-back","double wing":"3-back",
   "bunch":"bunch","stack":"bunch","bunch trips":"bunch",
-  "unbalanced":"unbalanced","over":"unbalanced"
+  "unbalanced":"unbalanced"
 };
 const BASE_PLAYS = {
   "inside zone":"run","outside zone":"run","wide zone":"run","zone read":"rpo","read option":"run","speed option":"run","triple option":"run","option":"run",
   "power":"run","counter":"run","duo":"run","trap":"run","iso":"run","toss":"run","sweep":"run","jet sweep":"run","jet":"run","dive":"run","belly":"run","buck sweep":"run","g lead":"run","stretch":"run","split zone":"run",
   "qb draw":"qb-run","qb power":"qb-run","qb counter":"qb-run","sneak":"qb-run","qb sneak":"qb-run","draw":"run",
-  "stick":"pass","mesh":"pass","smash":"pass","flood":"pass","dagger":"pass","drive":"pass","four verts":"pass","4 verts":"pass","verts":"pass","slant flat":"pass","slants":"pass","slant":"pass","hitch":"pass","hitches":"pass","curl flat":"pass","curl":"pass","snag":"pass","spacing":"pass","levels":"pass","shallow":"pass","shallow cross":"pass","y cross":"pass","sail":"pass","fade":"pass","go":"pass","post":"pass","corner":"pass","out":"pass","quick out":"pass","comeback":"pass","dig":"pass","seam":"pass","glance":"rpo","bang 8":"pass","double move":"pass","hail mary":"pass",
+  "stick":"pass","mesh":"pass","smash":"pass","flood":"pass","dagger":"pass","drive":"pass","four verts":"pass","4 verts":"pass","verts":"pass","slant flat":"pass","slants":"pass","slant":"pass","hitch":"pass","hitches":"pass","curl flat":"pass","curl":"pass","snag":"pass","spacing":"pass","levels":"pass","shallow":"pass","shallow cross":"pass","y cross":"pass","sail":"pass","fade":"pass","post":"pass","corner route":"pass","post corner":"pass","quick out":"pass","comeback":"pass","dig":"pass","seam":"pass","glance":"rpo","bang 8":"pass","double move":"pass","hail mary":"pass",
   "bubble":"screen","bubble screen":"screen","tunnel screen":"screen","rb screen":"screen","jailbreak":"screen","now screen":"screen","screen":"screen","swing":"pass",
   "boot":"play-action","bootleg":"play-action","naked":"play-action","play action":"play-action","pa pass":"play-action","rpo":"rpo"
 };
@@ -246,7 +246,7 @@ const DEF_WORDS = ["boundary corner","field corner","boundary safety","field saf
 const NUMW = {zero:0,oh:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50};
 
 const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-const namePat = n => reEsc(n.toLowerCase()).replace(/\\?[\s-]+/g,"[\\s-]*");
+const namePat = n => reEsc(n.toLowerCase()).replace(/\\?[\s-]+/g,"[\\s-]*").replace(/([a-z])(\d)/g,"$1[\\s-]*$2");
 const cap = s => s.replace(/\b([a-z])/g, m => m.toUpperCase());
 function canonDef(d){
   const m = {cb:"CB","boundary cb":"Boundary CB","field cb":"Field CB","boundary corner":"Boundary CB","field corner":"Field CB",de:"DE",dt:"DT",ss:"SS",fs:"FS","3 tech":"3-tech","three tech":"3-tech","defensive end":"DE","strong safety":"SS","free safety":"FS"};
@@ -298,6 +298,9 @@ function parseCall(text, dict, prev){
   // defenders named as positions ("boundary corner", "will backer") are never a play or formation
   const reD = /\b(boundary|field|strong|free) (corner|safety|cb|backer|linebacker)\b|\b(will|mike|sam) (backer|linebacker)\b/g;
   const defSpans = []; while ((m = reD.exec(s))) defSpans.push([m.index, m.index+m[0].length]);
+  // everyday booth phrases that share words with call-sheet names ("red zone", "out of bounds", "hot route")
+  const reP = /\bred ?zone\b|\bgreen ?zone\b|\bout of bounds\b|\b(?:ran|went|stepped|pushed|knocked|got|forced|bounced|kicked) (?:it )?out\b|\boff the (?:edge|ball|line|field|block|snap|hash)\b|\bpicked off\b|\bpick off\b|\bhot (?:route|read|throw|ball)\b|\bthrew (?:it )?hot\b|\bthe spot\b|\bnear side\b|\bfar side\b|\bstrong side\b|\bweak side\b|\bstrong safety\b|\bon the fly\b|\bin space\b|\bin traffic\b/g;
+  while ((m = reP.exec(s))) defSpans.push([m.index, m.index+m[0].length]);
   const blockNames = () => used.concat(defSpans);
   // formation and play names
   const fm = findName(s, dict.forms, blockNames());
@@ -445,8 +448,11 @@ function guessType(n){
 }
 function parseSheet(text){
   const out = [], seen = new Set();
-  let kind = null;
-  const HEAD = /^\s*(formations?|forms?|sets?|personnel groupings?|plays?|run game|runs?|pass game|passes|pass(?:ing)? concepts?|concepts?|rpos?|screens?|motions?|tags?|shifts?)\s*(?:[:\-–—]|$)\s*/i;
+  let kind = null, headType = null;
+  const HEAD = /^\s*(formations?|forms?|sets?|personnel groupings?|plays?|run(?:ning)? game|runs?|pass(?:ing)? game|passes|pass(?:ing)? concepts?|concepts?|quick game|drop ?back|play ?action(?: game)?|rpos?(?: game)?|screens?(?: game)?|motions?|tags?|shifts?|[a-z]+ game)\s*(?:[:\-–—]|$)\s*/i;
+  const typeOf = h => { h = h.toLowerCase();
+    if (/^run/.test(h)) return "run"; if (/^screen/.test(h)) return "screen"; if (/^rpo/.test(h)) return "rpo";
+    if (/^play ?action/.test(h)) return "play-action"; if (/^(pass|quick|drop|concept)/.test(h)) return "pass"; return null; };
   const kindOf = h => { h = h.toLowerCase();
     if (/^(formation|form|set|personnel)/.test(h)) return "form";
     if (/^(motion|tag|shift)/.test(h)) return "tag";
@@ -454,20 +460,22 @@ function parseSheet(text){
   for (let line of String(text).replace(/\r/g,"").split("\n")){
     line = line.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/,"");
     const h = line.match(HEAD);
-    if (h){ kind = kindOf(h[1]); line = line.slice(h[0].length); }
+    if (h){ kind = kindOf(h[1]); headType = kind==="play" ? typeOf(h[1]) : null; line = line.slice(h[0].length); }
     // a spreadsheet row "name, type" or "name<TAB>type": keep only the first cell when the rest names a kind
     const cells = line.split(/\t/);
     const parts = cells.length > 1 ? [cells[0]] : line.split(/[,;|]/);
     if (cells.length > 1){ const k2 = (cells[1]||"").toLowerCase();
       if (/formation|set/.test(k2)) kind = kind || "form"; else if (/motion|tag/.test(k2)) kind = kind || "tag"; }
     for (let raw of parts){
-      const name = raw.replace(/[“”"]/g,"").replace(/\s+/g," ").trim();
+      // a note in parentheses is dropped, unless it names a family: "Silver (trips)"
+      const pm = raw.match(/\(([^)]*)\)/), pfam = pm ? guessFamily(pm[1]) : null;
+      const name = raw.replace(/\([^)]*\)/g,"").replace(/[“”"]/g,"").replace(/\s+/g," ").trim();
       if (name.length < 2 || name.length > 40) continue;
       const key = name.toLowerCase();
       if (seen.has(key)) continue; seen.add(key);
       let k = kind;
-      if (!k){ const f = guessFamily(name), lk = key in BASE_FORMS; k = (lk || (f && !guessType(name))) ? "form" : /motion|jet|orbit|zip|zap|zoom|rocket|fly|shift/.test(key) && !BASE_PLAYS[key] ? "tag" : "play"; }
-      out.push({kind:k, name, sub: k==="form" ? (BASE_FORMS[key] || guessFamily(name)) : k==="play" ? guessType(name) : null});
+      if (!k){ const f = guessFamily(name), lk = key in BASE_FORMS; k = (lk || pfam || (f && !guessType(name))) ? "form" : /motion|jet|orbit|zip|zap|zoom|rocket|fly|shift/.test(key) && !BASE_PLAYS[key] ? "tag" : "play"; }
+      out.push({kind:k, name, sub: k==="form" ? (pfam || BASE_FORMS[key] || guessFamily(name)) : k==="play" ? (headType || guessType(name)) : null});
     }
   }
   return out;
