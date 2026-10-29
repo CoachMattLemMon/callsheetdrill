@@ -763,6 +763,7 @@ function addTo(b, p){
 }
 function buildProfile(opp){
   const key = teamKey(opp), prof = {name:opp, key, games:0, snaps:0, all:emptyB(), sit:{}, fam:{}};
+  const weak = {};
   for (const [id,g] of Object.entries(DATA.games)){
     if (teamKey(g.opp)!==key) continue;
     const ps = Object.values(DATA.plays[id]||{});
@@ -775,9 +776,12 @@ function buildProfile(opp){
       if (y!=null && y<=20) addTo(prof.sit.redzone ||= emptyB(), p);
       if (y!=null && y>=90) addTo(prof.sit.backed ||= emptyB(), p);
       if (p.family) addTo(prof.fam[p.family] ||= emptyB(), p);
+      if (p.defender || p.weakness){ const k = p.defender || "Unassigned"; const w = (weak[k] ||= {d:k, n:0, notes:[]}); w.n++; if (p.weakness && !w.notes.includes(p.weakness)) w.notes.push(p.weakness); }
     }
   }
   prof.snaps = prof.all.n;
+  // the defenders you called out most, for the game plan's Attack list
+  prof.weak = Object.values(weak).sort((a,b)=>b.n-a.n).slice(0,8).map(w=>({d:w.d, n:w.n, notes:w.notes.slice(-3)}));
   return prof;
 }
 function sentNote(opp){

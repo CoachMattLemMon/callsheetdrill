@@ -370,6 +370,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
         <button id="mCoach" aria-pressed="true">Coach</button>
       </div>
       <button class="btn" id="openTeam">Team setup</button>
+      <button class="btn" id="planBtn" hidden>Game plan</button>
       <button class="btn primary" id="installBtn" hidden>Install app</button>
     </div>
   </header>
@@ -526,6 +527,57 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
     </div>
   </div>
 </div>
+
+<div class="sheet" id="planSheet" hidden>
+  <div class="sheetin" role="dialog" aria-modal="true" aria-labelledby="planT">
+    <div class="gphead"><h2 id="planT">Game plan <span class="gpbeta">Beta</span></h2><button class="btn" id="planClose">Done</button></div>
+    <div class="gptabs" role="tablist"><button role="tab" data-gt="players" aria-selected="true">Players</button><button role="tab" data-gt="edit" aria-selected="false">Set the plan</button><button role="tab" data-gt="report" aria-selected="false">Coach report</button></div>
+    <div id="planBody"></div>
+  </div>
+</div>
+<style>
+.gpbeta{font-family:var(--f-body);font-size:11px;letter-spacing:.1em;background:var(--flag);color:#14231a;border-radius:4px;padding:2px 6px;vertical-align:middle}
+.gphead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.gptabs{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line);margin-bottom:14px}
+.gptabs button{border:0;background:transparent;padding:10px 4px;font-size:12.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent}
+.gptabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.gpsec{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:var(--bg)}
+.gpsec h3{font-family:var(--f-display);font-weight:800;font-size:19px;text-transform:uppercase;margin:0 0 8px;letter-spacing:.03em}
+.gpboard{background:var(--board);color:var(--board-ink);border-color:var(--board)}
+.gpvs{font-family:var(--f-display);font-weight:800;font-size:32px;text-transform:uppercase;line-height:1.05;margin:4px 0}
+.gpattack{border:2px solid var(--flag)}
+.gprow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px;flex-wrap:wrap}
+.gprow:last-child{border-bottom:0}
+.gpmut{color:var(--muted);font-size:13px;font-weight:400}
+.gpin{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:8px 9px;min-width:0;width:100%;font-size:15px}
+.gplab{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.gplab .gpin{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
+.gp2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gp3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr);gap:6px;align-items:center;margin-bottom:6px;font-size:14px}
+.gptg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--line)}
+.gpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+.gpchk{display:flex;gap:6px;align-items:center;font-size:15px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.gpsug{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.gpacts{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.gpstart{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:.05em;text-transform:uppercase;padding:10px 22px}
+.gptw{overflow-x:auto}
+.gptab{border-collapse:collapse;width:100%;font-size:14px}
+.gptab th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 4px;border-bottom:1px solid var(--line)}
+.gptab td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.gpres{display:grid;gap:10px;margin-bottom:12px}
+.gpcard{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
+.gpcard b{font-size:16px}
+.gpcard p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+.gpmark{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
+.gpcard.ok .gpmark{background:var(--g-best)}.gpcard.no .gpmark{background:var(--g-miss)}
+.gpchecks{margin-bottom:4px}
+.gpchecks .call{background:var(--board);border-color:var(--board)}
+.gpchecks .call b,.gpchecks .call span{color:var(--board-ink)}
+.gpchecks .call small{color:var(--board-amber)}
+.gpchecks .call:hover,.gpchecks .call:focus-visible{background:#1c2a21;border-color:var(--board-amber)}
+.gplist{margin:8px 0}
+@media (max-width:520px){.gp2,.gptg{grid-template-columns:minmax(0,1fr)}.gp3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.gp3>span{grid-column:1/-1;font-weight:700}}
+</style>
 
 <script>
 (function(){
@@ -1198,6 +1250,7 @@ const hasTargets=opt=>passable(opt.act)&&opt.act!=='hail'&&Object.keys(targetsFo
 /* ================= game flow ================= */
 let G=null,curTab='two';
 function start(sp){
+ if(!sp.plan&&PRUN){PRUN=null;OPP=oppProfile();}
  closeDrawer();
  G={sp,s:{obj:sp.obj,t:sp.t,ytg:sp.ytg,down:sp.down,dist:Math.min(sp.dist,sp.ytg),TO:sp.TO,margin:sp.margin,status:sp.status||'snap',live:false},
     log:[],grades:[],feeds:[],phase:'A',look:null,last:null,preview:null,plays:0,y0:sp.ytg,t0:sp.t,snapId:0,firstLook:sp.look||null};
@@ -1216,6 +1269,7 @@ function lookFromU(w,u){const ks=['c0','c1','c2','c3','c4'];let tot=0;for(const 
 /* coach mode: one roll per snap, read through the formation you line up in, so changing formation shows how the defense would adjust */
 function coachLook(){if(G.lookForced)return G.look;return lookFromU(FSEL.base?formAdj(lookW(G.s),callForm('quick','doubles')):lookW(G.s),G.lookU);}
 function beginSnap(){
+ if(G.sp&&G.sp.plan){planSnap();return;}
  G.usual='';G.lookMoved='';
  const s=G.s;G.preview=null;G.last=null;G.pend=null;G.calls=null;G.snapId++;
  if(MODE==='coach'){
@@ -1645,10 +1699,12 @@ function renderFeed(){
  const t=G.feeds[G.feeds.length-1].text;
  el.innerHTML=(t&&!(G.phase==='result'&&drawerMode())?'<p class="result">'+esc(t)+'</p>'+(G.usual?'<p class="usual">'+G.usual+'</p>':''):'')+'<div class="grades">'+G.feeds.map(feedCard).join('')+'</div>';
 }
-function lookChip(){return'<span class="look">Defense shows: '+LOOKS[G.look].label+(OPP?' · '+esc(OPP.name)+' tendencies':'')+'</span>';}
+function lookChip(){if(G.plan&&G.phase==='P')return'<span class="look">Read the defense'+(OPP?' · '+esc(OPP.name):'')+'</span>';return'<span class="look">Defense shows: '+LOOKS[G.look].label+(OPP?' · '+esc(OPP.name)+' tendencies':'')+'</span>';}
 function renderDecide(){
  const el=$('#decide'),s=G.s;
  if(G.phase==='busy'){el.innerHTML='<div class="busy"><i></i>Playing out every option a few hundred times…</div>';return;}
+ if(G.plan&&G.phase==='plandone'){renderPlanSummary();return;}
+ if(G.plan&&(G.phase==='P'||G.phase==='result')){renderPlanDecide();return;}
  if(G.phase==='result'){
   const rt=G.feeds.length?G.feeds[G.feeds.length-1].text:'';
   el.innerHTML=(rt?'<p class="snapres">'+esc(rt)+'</p>'+(G.usual?'<p class="snapres usual">'+G.usual+'</p>':''):'')+'<div class="snapbar"><p><b>'+downStr(s.down,s.dist,s.ytg)+' at '+spotStr(s.ytg)+'</b><br>'+fmt(s.t)+' left · '+(s.status==='running'?'clock running':s.status==='ready'?'clock starts on the ready':'clock stopped')+' · '+s.TO+' timeout'+(s.TO===1?'':'s')+'</p><button class="btn primary snapbtn" id="nextSnap">Next snap</button></div>';
@@ -2093,7 +2149,7 @@ addEventListener('storage',e=>{if(e.key==='csd-opp'){OPP=oppProfile();if(!$('#sh
 addEventListener('pageshow',()=>{OPP=oppProfile();});
 $('#addPlay').onclick=()=>{T.book.push(['New play','quick','doubles','']);saveTeam();renderBook();const i=T.book.length-1;openBuilder(i,$('#bkN'+i));};
 $('#resetTeam').onclick=()=>{T=JSON.parse(JSON.stringify(SAMPLE));applyForms();saveTeam();openTeam();};
-const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P')G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
+const closeSheet=()=>{$('#sheet').hidden=true;if(G&&G.phase==='P'&&!G.plan)G.calls=playerCalls(G.s,G.look,G.calls[0].act);if(G&&G.phase!=='busy')renderAll();};
 $('#closeTeam').onclick=closeSheet;
 $('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();});
@@ -2119,10 +2175,286 @@ let rsz=null,lastNarrow=isNarrow();
 addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{layoutTips();if(!drawerMode())closeDrawer();const n=isNarrow();if(n!==lastNarrow){lastNarrow=n;if(G&&G.phase!=='busy')renderFormation();}},150);});
 layoutTips();
 
+/* ================= game plan week (beta) =================
+   The coach sets the week: run and blitz checks, what each coverage calls for, situational calls, the plays in the plan
+   and the players to attack. Players get the plan, then reps against the opponent's charted tendencies: two check
+   buttons and three plan calls, graded twice (did you make the plan's call, and how did the call do). Hidden unless
+   turned on with ?beta=plan or opened from a coach's plan link. */
+let PLAN_LOADED=false;
+const PLAN_ON=(()=>{let on=false;try{const q=new URLSearchParams(location.search).get('beta');if(q==='plan')localStorage.setItem('csd-beta-plan','1');if(q==='off')localStorage.removeItem('csd-beta-plan');on=localStorage.getItem('csd-beta-plan')==='1';}catch(e){}return on||/^#gp=/.test(location.hash);})();
+const SITS=[['1st','1st down'],['2nd-long','2nd & long (7+)'],['2nd-med','2nd & medium (4–6)'],['2nd-short','2nd & short (1–3)'],['3rd-long','3rd & long (7+)'],['3rd-med','3rd & medium (4–6)'],['3rd-short','3rd & short (1–3)'],['4th-short','4th & short (1–2)'],['4th','4th down'],['redzone','Red zone (20 and in)'],['goal','Goal line (3 and in)'],['backed','Backed up (own 10 and in)']];
+const sitLabel=k=>(SITS.find(x=>x[0]===k)||[0,k])[1];
+function sitMatch(k,s){
+ if(k==='goal')return s.ytg<=4;if(k==='redzone')return s.ytg<=20;if(k==='backed')return s.ytg>=90;
+ if(k==='1st')return s.down===1;if(k==='4th')return s.down===4;if(k==='4th-short')return s.down===4&&s.dist<=2;
+ const m=k.match(/^(2nd|3rd)-(long|med|short)$/);if(!m)return false;
+ const d=m[1]==='2nd'?2:3,b=s.dist>=7?'long':s.dist>=4?'med':'short';return s.down===d&&b===m[2];
+}
+const RULES=[['blitz','Check blitz'],['run','Check run'],['best','No check: best plan call']];
+function blankPlan(){return{v:1,week:'',opp:null,form:'',side:'R',run:'',blitz:'',looks:{c0:'blitz',c1:'blitz',c2:'run',c3:'best',c4:'run'},lookFilm:{},sits:[],calls:[],targets:[],film:'',book:[],forms:{},fromLink:false};}
+function cleanPlan(p){
+ const b=blankPlan();if(!p||typeof p!=='object')return b;
+ const str=(v,n)=>String(v??'').slice(0,n||80);
+ b.week=str(p.week,40);b.form=str(p.form,24);b.side=p.side==='L'?'L':'R';b.run=str(p.run);b.blitz=str(p.blitz);b.film=safeUrl(p.film);
+ if(p.looks)for(const k of COVS)if(RULES.some(r=>r[0]===p.looks[k]))b.looks[k]=p.looks[k];
+ if(p.lookFilm)for(const k of COVS)b.lookFilm[k]=safeUrl(p.lookFilm[k]);
+ if(Array.isArray(p.sits))b.sits=p.sits.slice(0,20).map(r=>({sit:SITS.some(x=>x[0]===r.sit)?r.sit:'1st',play:str(r.play)}));
+ if(Array.isArray(p.calls))b.calls=p.calls.slice(0,40).map(x=>str(x));
+ if(Array.isArray(p.targets))b.targets=p.targets.slice(0,12).map(t=>({who:str(t.who,40),note:str(t.note,120),play:str(t.play),film:safeUrl(t.film)}));
+ if(Array.isArray(p.book))b.book=p.book.slice(0,60).filter(e=>Array.isArray(e)&&CATS[e[1]]).map(e=>[str(e[0]),e[1],str(e[2],24),str(e[3],60)]);
+ if(p.forms&&typeof p.forms==='object')for(const k in p.forms){if(!/^[a-z0-9]{1,24}$/i.test(k))continue;const c=cleanForm(p.forms[k]);if(c)b.forms[k]=c;}
+ if(p.opp&&typeof p.opp==='object'&&p.opp.sit)b.opp=p.opp;
+ b.fromLink=!!p.fromLink;return b;
+}
+function safeUrl(u){u=String(u||'').trim();return /^https:\/\/[^\s"'<>]+$/i.test(u)?u.slice(0,400):'';}
+let PLAN=cleanPlan(load('csd-plan',null));
+const planNames=()=>{const s=new Set();(PLAN.fromLink?PLAN.book.concat(T.book):T.book.concat(PLAN.book)).forEach(b=>{if(b&&CATS[b[1]])s.add(b[0]);});return[...s];};
+function entryByName(n){if(!n)return null;const a=PLAN.fromLink?[PLAN.book,T.book]:[T.book,PLAN.book];for(const l of a){const b=l.find(x=>x[0]===n);if(b&&CATS[b[1]])return b;}return null;}
+function savePlan(){
+ if(!PLAN.fromLink){
+  const names=new Set([PLAN.run,PLAN.blitz,...PLAN.calls,...PLAN.sits.map(r=>r.play),...PLAN.targets.map(t=>t.play)].filter(Boolean));
+  PLAN.book=[...names].map(entryByName).filter(Boolean).map(b=>[b[0],b[1],b[2],b[3]||'']);
+  const fk=new Set(PLAN.book.map(b=>b[2]).concat(PLAN.form?[PLAN.form]:[]));PLAN.forms={};
+  for(const k of fk)if(T.forms&&T.forms[k])PLAN.forms[k]=T.forms[k];
+ }
+ PLAN.updated=Date.now();save('csd-plan',PLAN);
+}
+function registerPlanForms(){for(const k in PLAN.forms){if(FORMS[k])continue;const c=cleanForm(PLAN.forms[k]);if(c)registerForm(k,{...formMods(c.pos),...c});}}
+const planForm=()=>PLAN.form&&FORMS[PLAN.form]?PLAN.form+(PLAN.side==='L'?'L':''):null;
+function mkEntry(name,extra){
+ const b=entryByName(name);if(!b)return null;
+ let form=FORMS[b[2]]?b[2]:'doubles';const pf=planForm();if(pf&&b[1]!=='hail'&&b[1]!=='sneak')form=pf;
+ return{...bookEntry(b[0],b[1],form,b[3]),real:b[0],...(extra||{})};
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(realR()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const sitRowFor=s=>PLAN.sits.find(r=>r.play&&entryByName(r.play)&&sitMatch(r.sit,s));
+/* three plan calls for this snap: the situational call when one fits, then a mix of run and pass from the plan */
+function planCallsFor(s){
+ const taken=new Set([PLAN.run,PLAN.blitz].filter(Boolean)),out=[];
+ const sr=sitRowFor(s);
+ if(sr&&!taken.has(sr.play)){const e=mkEntry(sr.play);if(e){out.push(e);taken.add(sr.play);}}
+ const fit=n=>{const b=entryByName(n);return b&&b[1]!=='hail'&&!(b[1]==='sneak'&&s.dist>3);};
+ let pool=PLAN.calls.filter(n=>!taken.has(n)&&fit(n));
+ if(pool.length<3-out.length)pool=pool.concat(planNames().filter(n=>!taken.has(n)&&!pool.includes(n)&&fit(n)));
+ shuffle(pool);
+ while(out.length<3&&pool.length){const have=new Set(out.map(o=>o.grp));let i=pool.findIndex(n=>!have.has(CATS[entryByName(n)[1]].grp));if(i<0)i=0;const e=mkEntry(pool.splice(i,1)[0]);if(e)out.push(e);}
+ return shuffle(out).map(c=>({...c,eyebrow:'Plan call'}));
+}
+/* what the plan says to call: a situational call first, then the coverage's rule, else the best of the plan calls */
+function planAnswer(s,look,rows){
+ const sr=sitRowFor(s);
+ if(sr&&rows.some(r=>r.real===sr.play))return{real:sr.play,why:sitLabel(sr.sit)+': we know what we\'re in. '+sr.play+'.'};
+ const rule=PLAN.looks[look]||'best';
+ if(rule==='blitz'&&PLAN.blitz&&rows.some(r=>r.pid==='blitz'))return{real:PLAN.blitz,why:LOOKS[look].label+' is a blitz look. The plan says check blitz: '+PLAN.blitz+'.'};
+ if(rule==='run'&&PLAN.run&&rows.some(r=>r.pid==='run'))return{real:PLAN.run,why:LOOKS[look].label+' leaves a light box. The plan says check run: '+PLAN.run+'.'};
+ const calls=rows.filter(r=>!r.pid);const pool=calls.length?calls:rows;const best=pool.reduce((a,b)=>b.v>a.v?b:a,pool[0]);
+ return{real:best.real,why:LOOKS[look].label+': no check. The best plan call here was '+best.real+'.'};
+}
+function planSpot(key){
+ const ri=(a,b)=>a+Math.floor(realR()*(b-a+1));
+ const s={id:null,plan:true,cat:'plan',sit:key,obj:'win',per:'2nd',status:'snap',margin:0,TO:3,t:ri(240,700)};
+ const map={'1st':[1,10,10],'2nd-long':[2,7,10],'2nd-med':[2,4,6],'2nd-short':[2,1,3],'3rd-long':[3,7,10],'3rd-med':[3,4,6],'3rd-short':[3,1,3],'4th-short':[4,1,2],'4th':[4,1,4]};
+ if(key==='goal'){const y=ri(2,4);Object.assign(s,{down:ri(1,3),ytg:y,dist:y});}
+ else if(key==='redzone')Object.assign(s,{down:1,dist:10,ytg:ri(12,20)});
+ else if(key==='backed')Object.assign(s,{down:1,dist:10,ytg:ri(90,96)});
+ else{const m=map[key]||map['1st'];Object.assign(s,{down:m[0],dist:ri(m[1],m[2]),ytg:ri(28,72)});}
+ s.dist=Math.min(s.dist,s.ytg);s.title=downStr(s.down,s.dist,s.ytg)+' at '+spotStr(s.ytg);s.blurb='Game plan rep';
+ return s;
+}
+function genReps(n){
+ const keys=[];PLAN.sits.forEach(r=>{if(r.play&&entryByName(r.play)&&!keys.includes(r.sit))keys.push(r.sit);});
+ const base=['1st','2nd-long','3rd-med','1st','3rd-short','2nd-med','3rd-long','redzone','1st','2nd-short','3rd-med','4th-short'];
+ let w=null;const o=PLAN.opp;
+ if(o&&o.sit){w={};for(const k of ['1st','2nd-long','2nd-med','2nd-short','3rd-long','3rd-med','3rd-short','4th','redzone','backed'])if(o.sit[k]&&o.sit[k].n)w[k]=o.sit[k].n;if(Object.keys(w).length<3)w=null;}
+ let i=0;while(keys.length<n)keys.push(w&&i++%3!==2?pick(w,realR):base[i++%base.length]);
+ return shuffle(keys.slice(0,n)).map(planSpot);
+}
+let PRUN=null;
+function planReady(){return !!(PLAN.run||PLAN.blitz||PLAN.calls.length)&&planNames().length>=2;}
+function startPlanReps(){
+ if(!planReady()){openPlan('edit');return;}
+ registerPlanForms();PRUN={reps:genReps(12),i:0,res:[]};OPP=PLAN.opp||null;
+ $('#planSheet').hidden=true;start(PRUN.reps[0]);
+}
+function planSnap(){
+ G.plan=true;const s=G.s;G.preview=null;G.last=null;G.prep=null;G.snapId++;G.usual='';
+ const pf=planForm();G.look=pick(pf?formAdj(lookW(s),pf):lookW(s),realR);
+ const checks=[];
+ if(PLAN.run){const e=mkEntry(PLAN.run,{label:'Check run',tag:'Game plan',eyebrow:'Check',pid:'run'});if(e)checks.push(e);}
+ if(PLAN.blitz){const e=mkEntry(PLAN.blitz,{label:'Check blitz',tag:'Game plan',eyebrow:'Check',pid:'blitz'});if(e)checks.push(e);}
+ G.calls=checks.concat(planCallsFor(s));G.phase='P';renderAll();
+}
+const planOptsNow=()=>G.calls.map((c,i)=>({...c,key:c.act+'|'+c.form+'|'+(c.rs||''),idx:i,first:{pre:null,action:c.act,look:G.look,form:c.form,tgt:'auto',routes:c.routes}}));
+function choosePlan(opt){busyThen(()=>{
+ const f=grade('P',planOptsNow(),opt,'At the line');
+ const ans=planAnswer(G.s,G.look,f.rows),ok=opt.real===ans.real;
+ const sb={...G.s},e=execA(G.s,opt.act,G.look,realR,'auto',opt.form,opt.routes);
+ const name=opt.pid?opt.label+' ('+opt.real+')':opt.real;
+ G.usual=(e.o&&CATS[opt.act])?usualLine({...opt,label:opt.real},G.look,sb,'auto'):'';
+ const text=narrate(name,opt.act,e,sb);
+ G.log.push({clk:fmt(sb.t),dot:f.g.k,text});G.feeds.forEach(x=>x.text=text);G.plays++;
+ G.last={opt,e,sb,look:G.look,tgt:'auto',form:opt.form,cat:opt.act,special:null};
+ G.prep={f,ans,ok,name,text};
+ if(PRUN)PRUN.res[PRUN.i]={ok,g:f.g,sit:G.sp.title,look:G.look,mine:name,ans:ans.real};
+ G.phase='result';renderAll();
+});}
+function nextRep(){if(!PRUN)return;PRUN.i++;if(PRUN.i>=PRUN.reps.length){G.phase='plandone';renderAll();return;}start(PRUN.reps[PRUN.i]);}
+const SVG_OK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="5 12 10 17 19 7"/></svg>';
+const SVG_NO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18"/></svg>';
+const filmBtn=(u,t)=>u?'<a class="btn" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(t||'Watch it on film')+'</a>':'';
+function renderPlanDecide(){
+ const el=$('#decide'),s=G.s,n=PRUN?PRUN.reps.length:1,i=PRUN?PRUN.i+1:1,opp=PLAN.opp?PLAN.opp.name:'';
+ const film=PLAN.lookFilm&&PLAN.lookFilm[G.look];
+ if(G.phase==='P'){
+  const opts=planOptsNow(),ch=opts.filter(o=>o.pid),cl=opts.filter(o=>!o.pid);
+  const b=o=>'<button class="call" data-i="'+o.idx+'"><small>'+esc(o.eyebrow)+'</small><b>'+esc(o.label)+'</b><span>'+esc(o.pid?o.tag:CATS[o.act].label)+'</span></button>';
+  el.innerHTML='<div class="phead"><h2>'+downStr(s.down,s.dist,s.ytg)+', '+spotStr(s.ytg)+'</h2>'+lookChip()+'</div>'
+   +'<p class="hint">Rep '+i+' of '+n+(opp?' · vs '+esc(opp):'')+'. Read the look on the field, then make the call.</p>'
+   +(ch.length?'<div class="calls big gpchecks">'+ch.map(b).join('')+'</div>':'')
+   +'<p class="glab" style="margin:14px 0 6px">Or a call from the plan</p><div class="calls big">'+cl.map(b).join('')+'</div>'
+   +(film?'<p style="margin:14px 0 0">'+filmBtn(film,'Watch this look on film')+'</p>':'');
+  bindCalls(el,opts,choosePlan);return;
+ }
+ const R=G.prep;if(!R){el.innerHTML='';return;}
+ const last=PRUN&&PRUN.i>=PRUN.reps.length-1;
+ el.innerHTML='<div class="gpres">'
+  +'<div class="gpcard '+(R.ok?'ok':'no')+'"><span class="gpmark">'+(R.ok?SVG_OK:SVG_NO)+'</span><div><div class="glab">Game plan</div><b>'+(R.ok?'Right read. That\'s our call.':'Not the plan call.')+'</b><p>'+esc(R.ans.why)+(R.ok?'':' You called '+esc(R.name)+'.')+'</p></div></div>'
+  +'<div class="gpcard"><span class="chip '+R.f.g.k+'">'+esc(R.f.g.label)+'</span><div><div class="glab">Result</div><b>'+esc(R.text)+'</b>'+(G.usual?'<p>'+G.usual+'</p>':'')+'</div></div>'
+  +'</div><div class="snapbar"><p><b>Rep '+i+' of '+n+'</b><br>'+(PRUN?PRUN.res.filter(r=>r&&r.ok).length:0)+' plan calls right so far</p><span style="display:flex;gap:8px;flex-wrap:wrap">'+(film?filmBtn(film,'See the look on film'):'')+'<button class="btn primary snapbtn" id="nextRep">'+(last?'See how you did':'Next rep')+'</button></span></div>';
+ $('#nextRep').onclick=nextRep;$('#nextRep').focus({preventScroll:true});
+}
+function renderPlanSummary(){
+ const el=$('#decide'),res=(PRUN?PRUN.res:[]).filter(Boolean),ok=res.filter(r=>r.ok).length;
+ const sc=res.length?Math.round(res.reduce((a,r)=>a+r.g.score,0)/res.length):null;
+ el.innerHTML='<div class="summary"><div class="bigscore">'+ok+'/'+res.length+'<small>Plan calls right</small></div><div><h2 class="sumhead">'+(PLAN.opp?'vs '+esc(PLAN.opp.name):'Game plan')+'</h2>'
+  +'<p style="margin:4px 0">Call grade '+(sc!=null?sc:'—')+'. '+(ok===res.length?'You ran the plan every snap.':'Look at the reps you missed before Friday.')+'</p>'
+  +'<div class="gplist">'+res.map(r=>'<div class="gprow"><span><i class="dot '+(r.ok?'best':'miss')+'"></i> '+esc(r.sit)+' · '+esc(LOOKS[r.look].label)+'</span><span>'+(r.ok?esc(r.ans):esc(r.mine)+' → plan: '+esc(r.ans))+'</span></div>').join('')+'</div>'
+  +'<div class="actions"><button class="btn primary" id="gpAgain">Run the reps again</button><button class="btn" id="gpBack">Back to the plan</button></div></div></div>';
+ $('#gpAgain').onclick=startPlanReps;$('#gpBack').onclick=()=>openPlan('players');
+}
+
+/* ---------- the plan sheet: players' view, the editor, the coach report ---------- */
+let GPTAB='players';
+function openPlan(tab){GPTAB=tab||GPTAB;$('#planSheet').hidden=false;renderPlan();}
+function renderPlan(){
+ document.querySelectorAll('#planSheet .gptabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.gt===GPTAB));
+ $('#planBody').innerHTML=GPTAB==='edit'?planEditHtml():GPTAB==='report'?planReportHtml():planPlayersHtml();
+}
+const covMix=b=>{if(!b||!b.n)return'';return COVS.filter(k=>b[k]).sort((x,y)=>b[y]-b[x]).slice(0,2).map(k=>'<b>'+esc(LOOKS[k].label)+'</b> '+b[k]+' of '+b.n).join(' · ');};
+const pressStr=b=>b&&b.pn>=3?Math.round(b.press/b.pn*100)+'% bring 5+':'';
+function playLine(n){const b=entryByName(n);return b?esc(n)+(PLAN.form&&FORMS[PLAN.form]?' <span class="gpmut">('+esc(FORMS[planForm()].label)+')</span>':''):esc(n);}
+function rulesFor(r){return COVS.filter(k=>PLAN.looks[k]===r).map(k=>LOOKS[k].label).join(', ');}
+function planPlayersHtml(){
+ const o=PLAN.opp;let h='<div class="gpsec gpboard"><div class="glab" style="color:var(--board-amber)">'+esc(PLAN.week||'This week')+' · Game plan</div><div class="gpvs">'+(o?'vs '+esc(o.name):'This week\'s plan')+'</div><div style="color:#c9d4c8">Read it, watch the film, then rep it.</div></div>';
+ if(!planReady())return h+'<div class="gpsec"><p style="margin:0">There\'s no plan yet. A coach sets it under <b>Set the plan</b>, then sends the link to players.</p></div>';
+ h+='<div class="gpsec"><h3>Our checks</h3>'
+  +(PLAN.run?'<div class="gprow"><span>Check run <span class="gpmut">'+esc(rulesFor('run')||'when the plan says')+'</span></span><b>'+playLine(PLAN.run)+'</b></div>':'')
+  +(PLAN.blitz?'<div class="gprow"><span>Check blitz <span class="gpmut">'+esc(rulesFor('blitz')||'when the plan says')+'</span></span><b>'+playLine(PLAN.blitz)+'</b></div>':'')+'</div>';
+ const sits=PLAN.sits.filter(r=>r.play);
+ if(sits.length)h+='<div class="gpsec"><h3>We know what we\'re in</h3>'+sits.map(r=>'<div class="gprow"><span>'+esc(sitLabel(r.sit))+'</span><b>'+playLine(r.play)+'</b></div>').join('')+'</div>';
+ const tg=PLAN.targets.filter(t=>t.who||t.note);
+ if(tg.length)h+='<div class="gpsec gpattack"><h3>Attack</h3>'+tg.map(t=>'<div class="gprow" style="flex-direction:column;align-items:flex-start;gap:2px"><span><b>'+esc(t.who)+'</b> '+esc(t.note)+'</span>'+(t.play?'<span class="gpmut">'+esc(t.play)+' to his side</span>':'')+(t.film?filmBtn(t.film,'Watch him on film'):'')+'</div>').join('')+'</div>';
+ if(o&&o.sit){const lines=[['1st','1st down'],['3rd-short','3rd & short'],['3rd-med','3rd & medium'],['3rd-long','3rd & long'],['redzone','Red zone']].filter(([k])=>o.sit[k]&&o.sit[k].n>=3);
+  if(lines.length)h+='<div class="gpsec"><h3>What they show</h3>'+lines.map(([k,l])=>'<div class="gprow"><span>'+l+'</span><span>'+covMix(o.sit[k])+(pressStr(o.sit[k])?' · '+pressStr(o.sit[k]):'')+'</span></div>').join('')+'</div>';}
+ h+='<div class="gpacts">'+filmBtn(PLAN.film,'Watch this week\'s film')+'<button class="btn primary gpstart" data-gp="start">Start reps</button></div>';
+ return h;
+}
+function sel(gp,val,opts,extra){return'<select class="gpin" data-gp="'+gp+'"'+(extra||'')+'>'+opts.map(([v,t])=>'<option value="'+esc(v)+'"'+(String(val)===String(v)?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select>';}
+function planEditHtml(){
+ if(PLAN.fromLink)return'<div class="gpsec"><h3>Your coach\'s plan</h3><p style="margin:0 0 10px">This plan came from a link your coach sent. The Players tab and the reps use it.</p><button class="btn" data-gp="own">Make my own plan instead</button></div>';
+ const names=planNames(),pn=[['','Pick a play']].concat(names.map(n=>[n,n]));
+ const st=load('csd-opp',null),profs=st&&st.profiles?Object.values(st.profiles):[];
+ let h='<div class="gpsec"><h3>The week</h3><div class="gp2"><label class="gplab">Week<input class="gpin" type="text" data-gp="week" value="'+esc(PLAN.week)+'" placeholder="Week 9" maxlength="40"></label>'
+  +'<label class="gplab">Opponent'+sel('opp',PLAN.opp?PLAN.opp.key:'',[['','Normal defenses']].concat(profs.map(p=>[p.key,p.name+' ('+p.snaps+' snaps)'])))+'</label>'
+  +'<label class="gplab">Formation for reps'+sel('form',PLAN.form,[['','Each play\'s own']].concat(BASEF().map(k=>[k,FORMS[k].label.replace(/ Rt$/,'')])))+'</label>'
+  +'<label class="gplab">Strength'+sel('side',PLAN.side,[['R','Right'],['L','Left']])+'</label></div>'
+  +(profs.length?'':'<p class="gpmut" style="margin:8px 0 0">Chart them in <a href="logger/">Booth Log</a> and tap Send to drill, and they show up here.</p>')+'</div>';
+ h+='<div class="gpsec"><h3>Checks</h3><div class="gp2"><label class="gplab">Check run'+sel('run',PLAN.run,pn)+'</label><label class="gplab">Check blitz'+sel('blitz',PLAN.blitz,pn)+'</label></div>'
+  +'<p class="gpmut" style="margin:10px 0 6px">What each look calls for, and a Hudl clip of it (optional):</p>'
+  +COVS.map(k=>'<div class="gp3"><span>'+esc(LOOKS[k].label)+'</span>'+sel('rule',PLAN.looks[k],RULES,' data-k="'+k+'"')+'<input class="gpin" type="url" data-gp="lookfilm" data-k="'+k+'" value="'+esc(PLAN.lookFilm[k]||'')+'" placeholder="https://www.hudl.com/…"></div>').join('')+'</div>';
+ h+='<div class="gpsec"><h3>We know what we\'re in</h3>'+PLAN.sits.map((r,i)=>'<div class="gp3">'+sel('sit',r.sit,SITS,' data-i="'+i+'"')+sel('sitplay',r.play,pn,' data-i="'+i+'"')+'<button class="linkbtn" data-gp="sitdel" data-i="'+i+'">Remove</button></div>').join('')
+  +'<button class="btn" data-gp="sitadd">Add a situation</button></div>';
+ h+='<div class="gpsec"><h3>Plays in the plan</h3><p class="gpmut" style="margin:0 0 8px">Each rep offers three of these, plus the two checks.</p><div class="gpgrid">'+names.map(n=>'<label class="gpchk"><input type="checkbox" data-gp="call" data-n="'+esc(n)+'"'+(PLAN.calls.includes(n)?' checked':'')+'> '+esc(n)+'</label>').join('')+'</div></div>';
+ const weak=(PLAN.opp&&Array.isArray(PLAN.opp.weak))?PLAN.opp.weak:[];
+ h+='<div class="gpsec"><h3>Attack</h3>'+PLAN.targets.map((t,i)=>'<div class="gptg"><input class="gpin" type="text" data-gp="tgwho" data-i="'+i+'" value="'+esc(t.who)+'" placeholder="#13 OLB" maxlength="40"><input class="gpin" type="text" data-gp="tgnote" data-i="'+i+'" value="'+esc(t.note)+'" placeholder="Doesn\'t set the edge" maxlength="120">'+sel('tgplay',t.play,[['','Play (optional)']].concat(names.map(n=>[n,n])),' data-i="'+i+'"')+'<input class="gpin" type="url" data-gp="tgfilm" data-i="'+i+'" value="'+esc(t.film)+'" placeholder="Hudl clip (optional)"><button class="linkbtn" data-gp="tgdel" data-i="'+i+'">Remove</button></div>').join('')
+  +(weak.length?'<p class="gpmut" style="margin:6px 0">From your Booth Log notes. Tap to add:</p><div class="gpsug">'+weak.map((w,i)=>'<button class="btn" data-gp="tgsug" data-i="'+i+'">'+esc(w.d)+' <span class="gpmut">'+esc((w.notes||[])[0]||'')+' ('+w.n+')</span></button>').join('')+'</div>':'')
+  +'<button class="btn" data-gp="tgadd">Add a player</button></div>';
+ h+='<div class="gpsec"><h3>Film for the week</h3><input class="gpin" type="url" data-gp="film" value="'+esc(PLAN.film)+'" placeholder="Hudl playlist link"></div>';
+ h+='<div class="gpsec"><h3>Send it to players</h3><p class="gpmut" style="margin:0 0 8px">Players open the link and get the plan and the reps on their phone. Send it again after you change the plan.</p><div class="gpacts"><button class="btn primary" data-gp="share">Copy link for players</button><button class="btn" data-gp="start">Try the reps</button></div><textarea id="gpLink" class="gpin" rows="3" readonly hidden></textarea><p class="impmsg" id="gpMsg" role="status"></p></div>';
+ return h;
+}
+function planReportHtml(){
+ const o=PLAN.opp;let h=planPlayersHtml().replace(/<div class="gpacts">[\s\S]*$/,'');
+ h+='<div class="gpsec"><h3>Look rules</h3>'+COVS.map(k=>'<div class="gprow"><span>'+esc(LOOKS[k].label)+'</span><span>'+esc((RULES.find(r=>r[0]===PLAN.looks[k])||RULES[2])[1])+(PLAN.lookFilm[k]?' · '+filmBtn(PLAN.lookFilm[k],'Clip'):'')+'</span></div>').join('')+'</div>';
+ if(!o)return h+'<div class="gpsec"><p style="margin:0">No opponent picked, so there are no charted tendencies. Pick one under Set the plan.</p></div>';
+ const order=['1st','2nd-long','2nd-med','2nd-short','3rd-long','3rd-med','3rd-short','4th','redzone','backed'];
+ const lab={'1st':'1st down','4th':'4th down',redzone:'Red zone',backed:'Backed up'};
+ h+='<div class="gpsec"><h3>'+esc(o.name)+' by situation</h3><p class="gpmut" style="margin:0 0 6px">'+o.games+' game'+(o.games===1?'':'s')+', '+o.snaps+' charted snaps. Under 4 snaps is a guess.</p><div class="gptw"><table class="gptab"><thead><tr><th>Situation</th><th>N</th><th>Coverage</th><th>5+</th></tr></thead><tbody>'
+  +order.filter(k=>o.sit[k]&&o.sit[k].n).map(k=>{const b=o.sit[k];return'<tr><td>'+esc(lab[k]||sitLabel(k))+'</td><td>'+b.n+'</td><td>'+covMix(b)+'</td><td>'+(b.pn?Math.round(b.press/b.pn*100)+'%':'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+ const fam=o.fam||{},fl={'2x2':'2x2','3x1':'3x1','empty':'Empty','2-back':'2-back','3-back':'3-back','bunch':'Bunch','unbalanced':'Unbalanced'};
+ const fk=Object.keys(fam).filter(k=>fam[k].n);
+ if(fk.length)h+='<div class="gpsec"><h3>By formation family</h3><div class="gptw"><table class="gptab"><thead><tr><th>Family</th><th>N</th><th>Coverage</th><th>5+</th></tr></thead><tbody>'+fk.sort((a,b)=>fam[b].n-fam[a].n).map(k=>'<tr><td>'+esc(fl[k]||k)+'</td><td>'+fam[k].n+'</td><td>'+covMix(fam[k])+'</td><td>'+(fam[k].pn?Math.round(fam[k].press/fam[k].pn*100)+'%':'—')+'</td></tr>').join('')+'</tbody></table></div></div>';
+ const weak=Array.isArray(o.weak)?o.weak:[];
+ if(weak.length)h+='<div class="gpsec"><h3>Weaknesses charted</h3>'+weak.map(w=>'<div class="gprow"><span><b>'+esc(w.d)+'</b> '+esc((w.notes||[]).join(' · '))+'</span><span>'+w.n+'×</span></div>').join('')+'</div>';
+ return h;
+}
+function planChange(e){
+ const t=e.target,gp=t.dataset&&t.dataset.gp;if(!gp)return;const i=+t.dataset.i,k=t.dataset.k;let rerender=e.type==='change';
+ if(gp==='week')PLAN.week=t.value;
+ else if(gp==='opp'){const st=load('csd-opp',null);PLAN.opp=t.value&&st&&st.profiles?st.profiles[t.value]||null:null;}
+ else if(gp==='form')PLAN.form=t.value;else if(gp==='side')PLAN.side=t.value;
+ else if(gp==='run')PLAN.run=t.value;else if(gp==='blitz')PLAN.blitz=t.value;
+ else if(gp==='rule')PLAN.looks[k]=t.value;
+ else if(gp==='lookfilm'){PLAN.lookFilm[k]=safeUrl(t.value);rerender=false;}
+ else if(gp==='film'){PLAN.film=safeUrl(t.value);rerender=false;}
+ else if(gp==='sit')PLAN.sits[i].sit=t.value;else if(gp==='sitplay')PLAN.sits[i].play=t.value;
+ else if(gp==='call'){const n=t.dataset.n;PLAN.calls=PLAN.calls.filter(x=>x!==n);if(t.checked)PLAN.calls.push(n);rerender=false;}
+ else if(gp==='tgwho'){PLAN.targets[i].who=t.value;rerender=false;}else if(gp==='tgnote'){PLAN.targets[i].note=t.value;rerender=false;}
+ else if(gp==='tgplay')PLAN.targets[i].play=t.value;else if(gp==='tgfilm'){PLAN.targets[i].film=safeUrl(t.value);rerender=false;}
+ else return;
+ savePlan();if(rerender&&e.type==='change'&&t.tagName==='SELECT')renderPlan();
+}
+function b64e(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function b64d(t){t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t);const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return new TextDecoder().decode(b);}
+function planClick(e){
+ const t=e.target.closest('[data-gp]');if(!t||t.tagName==='INPUT'||t.tagName==='SELECT')return;const gp=t.dataset.gp,i=+t.dataset.i;
+ if(gp==='start'){startPlanReps();return;}
+ if(gp==='own'){PLAN=blankPlan();savePlan();renderPlan();return;}
+ if(gp==='sitadd')PLAN.sits.push({sit:'4th-short',play:''});
+ else if(gp==='sitdel')PLAN.sits.splice(i,1);
+ else if(gp==='tgadd')PLAN.targets.push({who:'',note:'',play:'',film:''});
+ else if(gp==='tgdel')PLAN.targets.splice(i,1);
+ else if(gp==='tgsug'){const w=PLAN.opp&&PLAN.opp.weak&&PLAN.opp.weak[i];if(w)PLAN.targets.push({who:String(w.d||''),note:String((w.notes||[])[0]||''),play:'',film:''});}
+ else if(gp==='share'){
+  savePlan();const link=location.origin+location.pathname+'?beta=plan#gp='+b64e(JSON.stringify({...PLAN,fromLink:true}));
+  const ta=$('#gpLink'),msg=$('#gpMsg');ta.hidden=false;ta.value=link;
+  const ok=()=>{msg.textContent='Link copied. Text or email it to your players.';};
+  try{navigator.clipboard.writeText(link).then(ok,()=>{ta.focus();ta.select();msg.textContent='Copying is blocked here. The link is selected in the box, so copy it with long-press.';});}catch(_){ta.focus();ta.select();}
+  return;
+ }
+ else return;
+ savePlan();renderPlan();
+}
+(function importPlanLink(){
+ const m=location.hash.match(/^#gp=([A-Za-z0-9_-]+)/);if(!m)return;
+ try{const p=JSON.parse(b64d(m[1]));if(p&&p.v===1){PLAN=cleanPlan({...p,fromLink:true});save('csd-plan',PLAN);try{localStorage.setItem('csd-beta-plan','1');}catch(e){}PLAN_LOADED=true;}}catch(e){}
+ try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+})();
+$('#planBtn').hidden=!PLAN_ON;
+$('#planBtn').onclick=()=>openPlan(PLAN.fromLink||planReady()?'players':'edit');
+$('#planClose').onclick=()=>{$('#planSheet').hidden=true;};
+$('#planSheet').addEventListener('click',e=>{if(e.target.id==='planSheet')$('#planSheet').hidden=true;});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#planSheet').hidden)$('#planSheet').hidden=true;});
+document.querySelectorAll('#planSheet .gptabs button').forEach(b=>b.onclick=()=>{GPTAB=b.dataset.gt;renderPlan();});
+$('#planBody').addEventListener('change',planChange);
+$('#planBody').addEventListener('input',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox')planChange(e);});
+$('#planBody').addEventListener('click',planClick);
+
 /* keep the field tucked under the pinned scoreboard */
 function syncBand(){const b=$('#scoreband');if(b)document.documentElement.style.setProperty('--bandH',b.offsetHeight+'px');}
 try{new ResizeObserver(syncBand).observe($('#scoreband'));}catch(e){addEventListener('resize',syncBand);}
 renderTreeText();start(SPOTS[0]);syncBand();
+if(PLAN_LOADED)openPlan('players');
 })();
 </script>
 
