@@ -169,7 +169,7 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
   <main id="v-log" class="wrap" style="gap:12px">
     <div class="entry">
       <textarea id="say" placeholder="1st and 10 minus 30 trips right inside zone, cover 3, 4 man, gain of 5, new play, stick, they rolled late, Will slow under it, plus 7, new play…" aria-label="Drive call-outs"></textarea>
-      <div class="hint">Start of the drive: tap the box, then the <b>mic on your keyboard</b>, and leave it on. Talk each snap and say <b>“new play”</b> between plays. If the mic stops, tap it again and keep going.</div>
+      <div class="hint">Start of the drive: tap the box, then the <b>mic on your keyboard</b>, and leave it on. Talk each snap and talk like you do on the headset. It splits the snaps on its own; saying <b>“new play”</b> still works if you want a sure break. If the mic stops, tap it again and keep going.</div>
       <div class="hint" id="countHint">0 plays in the box</div>
       <button class="logbtn" id="logBtn" type="button">Log drive</button>
       <div class="notice" id="notice" hidden></div>
@@ -513,7 +513,36 @@ function parseSheet(text){
   }
   return out;
 }
-function splitDrive(t){ return t.split(/\bnew[\s.,-]*play\b[\s.,;:!?-]*/i).map(x=>x.replace(/^[\s.,;:!?-]+|[\s.,;:!?-]+$/g,"")).filter(x=>x.length>2); }
+function splitDrive(t){ return t.split(/\b(?:new|next)[\s.,-]*(?:play|place|pl\b\.?)[\s.,;:!?-]*/i).map(x=>x.replace(/^[\s.,;:!?-]+|[\s.,;:!?-]+$/g,"")).filter(x=>x.length>2); }
+/* no "new play" needed: a new snap starts at a down and distance or a formation call,
+   once the talk since the last split has named a play and a result ("+7", "touchdown", "incomplete") */
+function autoSplit(t, dict){
+  const out = [];
+  for (const piece of splitDrive(t)){
+    const low = piece.toLowerCase();
+    const at = re => { const r = []; let m; re.lastIndex = 0; while ((m = re.exec(low))) { r.push(m.index); if (m[0].length===0) re.lastIndex++; } return r; };
+    const names = keys => keys.filter(n=>n.length>=2).sort((a,b)=>b.length-a.length).map(namePat).join("|");
+    const playPos = at(new RegExp("(?<![a-z0-9])(?:" + names(Object.keys(dict.plays)) + ")(?![a-z0-9])","g"));
+    const resPos = at(/(?:^|\s)[+]\s?\d|\bplus\s+(?:\d|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)|\bminus\s+(?:\d|one|two|three|four|five)\b|\btouch ?down\b|\bincomplet|\bsack(?:ed)?\b|\bpick(?:ed)? off\b|\bintercept|\bfumble|\bno gain\b|\bstuffed\b|\bpenalty\b|\bholding\b|\boffsides\b|\bflag\b|\bloss of\b|\b\d{1,2} yards?\b|\bgain(?:ed|s)?\b|\bpicked up\b|\bcomplete\b|\bfirst down\b|\b1st down\b|\bscore[sd]?\b/g);
+    const ddPos = at(/\b(?:1st|2nd|3rd|4th|first|second|third|fourth)\s+(?:and|in|of|&)\b|\b(?:2nd|3rd|4th|second|third|fourth) down\b/g);
+    const fmPos = at(new RegExp("(?<![a-z0-9])(?:" + names(dict.ownForms && dict.ownForms.length ? dict.ownForms : Object.keys(dict.forms)) + ")(?![a-z0-9])","g"));
+    const cands = [...new Set(ddPos.concat(fmPos))].sort((a,b)=>a-b);
+    let last = 0;
+    for (const c of cands){
+      if (c < last + 15) continue;
+      const seenPlay = playPos.some(i=>i>=last && i<c), seenRes = resPos.some(i=>i>=last && i<c);
+      if (seenPlay && seenRes){ out.push(piece.slice(last, c)); last = c; }
+    }
+    out.push(piece.slice(last));
+  }
+  // a piece with no formation or play in it (a down called for next time, chatter) rides with the snap before it
+  const hasCall = new RegExp("(?<![a-z0-9])(?:" + Object.keys(dict.plays).concat(dict.ownForms && dict.ownForms.length ? dict.ownForms : Object.keys(dict.forms)).filter(n=>n.length>=2).sort((a,b)=>b.length-a.length).map(namePat).join("|") + ")(?![a-z0-9])");
+  const merged = [];
+  for (const x of out.map(x=>x.replace(/^[\s.,;:!?-]+|[\s.,;:!?-]+$/g,"")).filter(x=>x.length>2)){
+    if (merged.length && !hasCall.test(x.toLowerCase())) merged[merged.length-1] += " " + x; else merged.push(x);
+  }
+  return merged;
+}
 /*PARSER-END*/
 </script>
 
@@ -650,7 +679,8 @@ function logDrive(){
   const text = $("#say").value.trim();
   if (!text) { $("#say").focus(); return; }
   if (!gid) { note("Start a game first: tap New game."); return; }
-  const segs = splitDrive(text);
+  const d0 = dictNow();
+  const segs = autoSplit(text, d0).filter(raw => { const q = parseCall(raw, d0, null); return raw.length >= 40 || q.formation || q.play || q.down || q.gain!=null || q.outcome; });
   if (!segs.length) return;
   $("#say").value = ""; updateCount();
   const ps = plays().sort((a,b)=>a.t-b.t);
@@ -668,7 +698,7 @@ function logDrive(){
   justAdded = first; saveData(); render();
   if (unheard) note(unheard===1 ? "1 play has no formation it recognized. Tap Fix on it, or add the name under My terms." : unheard+" plays have no formation it recognized. Tap Fix on them, or add the names under My terms.");
 }
-function updateCount(){ const n = splitDrive($("#say").value).length; $("#countHint").textContent = n===1 ? "1 play in the box" : n+" plays in the box"; }
+let cntT; function updateCount(){ clearTimeout(cntT); cntT = setTimeout(()=>{ const n = autoSplit($("#say").value, dictNow()).length; $("#countHint").textContent = n===1 ? "1 play in the box" : n+" plays in the box"; }, 250); }
 
 /* ---------- UI helpers ---------- */
 let noteT;
