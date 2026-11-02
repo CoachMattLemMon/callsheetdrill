@@ -211,6 +211,11 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
       <div class="hint" id="backupMsg" role="status"></div>
     </section>
     <section class="card">
+      <h2>Re-read this game</h2>
+      <p class="sub">Reads every play in this game again with your current terms and heard-as fixes. Plays you fixed by hand stay as you left them.</p>
+      <div class="row"><button class="btn" id="rereadGame" type="button">Re-read this game</button><span class="hint" id="rereadMsg" role="status"></span></div>
+    </section>
+    <section class="card">
       <h2>Delete this game</h2>
       <div class="row"><button class="btn danger" id="delGame" type="button">Delete game</button><button class="btn danger" id="delGameYes" type="button" hidden>Yes, delete it and its plays</button></div>
     </section>
@@ -254,12 +259,22 @@ function canonDef(d){
   const n = d.match(/^(?:number|#)\s*(\d+)$/); if (n) return "#"+n[1];
   return cap(d);
 }
-function normText(t){
-  let s = " " + t.toLowerCase().replace(/[“”"]/g,"").replace(/\s+/g," ") + " ";
+function normText(t, alias){
+  let s = " " + t.toLowerCase().replace(/[“”"’‘]/g,"'").replace(/'/g,"").replace(/\s+/g," ") + " ";
+  // the coach's "heard as" fixes: what dictation writes -> the real word
+  if (alias) for (const h of Object.keys(alias).sort((a,b)=>b.length-a.length)) if (h && alias[h]) s = s.replace(new RegExp("(^|[^a-z0-9])" + namePat(h) + "(?![a-z0-9])","g"), "$1" + alias[h]);
   s = s.replace(/\bcover(?:age)?\s*(tree|free)\b/g,"cover 3").replace(/\bcover\s*(to|too)\b/g,"cover 2").replace(/\bcover\s*(for|fore)\b/g,"cover 4").replace(/\bcover\s*(won)\b/g,"cover 1");
   s = s.replace(/\b(twenty|thirty|forty)[\s-](one|two|three|four|five|six|seven|eight|nine)\b/g,(m,a,b)=>String(NUMW[a]+NUMW[b]));
   s = s.replace(/\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty)\b/g,m=>String(NUMW[m]));
   s = s.replace(/(\d)\s*yds?\b/g,"$1 yards");
+  // box talk as dictation writes it: "for two bucks", "42 blocks", "52 bucks" -> "4-2 box"
+  const BX = "(?:box(?:es|er)?|bucks?|bikes?|blocks?|backs|bloxburg)";
+  s = s.replace(new RegExp("\\b(?:for|4)[\\s-]*(?:to|too|2)[\\s-]*" + BX + "\\b","g"), " 4-2 box ");
+  s = s.replace(new RegExp("\\b([3-7])[\\s-]?([0-4])[\\s-]*" + BX + "\\b","g"), " $1-$2 box ");
+  s = s.replace(/\b(?:first|1st) (?:in|and) town\b/g, "first and 10");
+  s = s.replace(/\b(1st|2nd|3rd|4th|first|second|third|fourth)\s*(?:and|in|of)\s*10(\d{2})\b/g, "$1 and 10 from the $2");
+  s = s.replace(/\b(1st|2nd|3rd|4th|first|second|third|fourth)\s+(?:in|of)\s+(goal|inches|\d{1,2})\b/g, "$1 and $2");
+  s = s.replace(/\btoo high\b/g, "2 high");
   return s;
 }
 /* dictionary match: the earliest name in the text wins, the longest on a tie; returns {name, i, len, val} or null */
@@ -278,12 +293,12 @@ function findName(s, dict, blocked){
   }
   return best;
 }
-function blank(){ return {down:null,dist:null,side:null,yd:null,hash:null,personnel:null,formation:null,family:null,play:null,playType:null,tags:null,front:null,coverage:null,rotation:null,pressure:null,blitz:null,blitzer:null,gain:null,outcome:null,defender:null,weakness:null}; }
+function blank(){ return {box:null,boxN:null,down:null,dist:null,side:null,yd:null,hash:null,personnel:null,formation:null,family:null,play:null,playType:null,tags:null,front:null,coverage:null,rotation:null,pressure:null,blitz:null,blitzer:null,gain:null,outcome:null,defender:null,weakness:null}; }
 
 /* dict = {forms:{name:family}, plays:{name:type}, tags:[...]} ; prev = previous play (for "same ...") */
 function parseCall(text, dict, prev){
   const o = blank();
-  const s = normText(text);
+  const s = normText(text, dict.alias);
   const used = [];            // spans already claimed by a name
   const mark = (i,len) => used.push([i,i+len]);
 
@@ -295,15 +310,27 @@ function parseCall(text, dict, prev){
     o.dist = m[2]==="goal" ? "goal" : m[2]==="inches" ? 1 : +m[2];
     ddEnd = m.index + m[0].length; mark(m.index, m[0].length);
   }
+  // box count: "4-2 box", "7 man box", "7 in the box", "light box"
+  const bm = s.match(/\b([3-7])-([0-4]) box\b/);
+  if (bm){ o.box = bm[1] + "-" + bm[2]; o.boxN = (+bm[1]) + (+bm[2]); mark(bm.index, bm[0].length); }
+  else if ((m = s.match(/\b([4-9])[\s-]*(?:man|men) box\b|\b([4-9]) in the box\b/))){ o.boxN = +(m[1]||m[2]); o.box = o.boxN + " in box"; mark(m.index, m[0].length); }
+  else if ((m = s.match(/\b(light|heavy|loaded|stacked) box\b/))){ o.box = m[1]==="light" ? "Light" : "Heavy"; mark(m.index, m[0].length); }
   // defenders named as positions ("boundary corner", "will backer") are never a play or formation
   const reD = /\b(boundary|field|strong|free) (corner|safety|cb|backer|linebacker)\b|\b(will|mike|sam) (backer|linebacker)\b/g;
   const defSpans = []; while ((m = reD.exec(s))) defSpans.push([m.index, m.index+m[0].length]);
   // everyday booth phrases that share words with call-sheet names ("red zone", "out of bounds", "hot route")
-  const reP = /\bred ?zone\b|\bgreen ?zone\b|\bout of bounds\b|\b(?:ran|went|stepped|pushed|knocked|got|forced|bounced|kicked) (?:it )?out\b|\boff the (?:edge|ball|line|field|block|snap|hash)\b|\bpicked off\b|\bpick off\b|\bhot (?:route|read|throw|ball)\b|\bthrew (?:it )?hot\b|\bthe spot\b|\bnear side\b|\bfar side\b|\bstrong side\b|\bweak side\b|\bstrong safety\b|\bon the fly\b|\bin space\b|\bin traffic\b/g;
+  const reP = /\bred ?zone\b|\bgreen ?zone\b|\bout of bounds\b|\b(?:ran|went|stepped|pushed|knocked|got|forced|bounced|kicked) (?:it )?out\b|\boff the (?:edge|ball|line|field|block|snap|hash)\b|\bpicked off\b|\bpick off\b|\bhot (?:route|read|throw|ball)\b|\bthrew (?:it )?hot\b|\bthe spot\b|\bnear side\b|\bfar side\b|\bstrong side\b|\bweak side\b|\bstrong safety\b|\bon the fly\b|\bin space\b|\bin traffic\b|\bout (?:here|there|of|on|by|in|to|at|for|bounce|bounds|out)\b|\b(?:the|of|some|much|more|no|any) space\b|\bspot (?:it|the ball)\b|\b(?:walk(?:s|ing|ed)?|bump(?:s|ing|ed)?|roll(?:s|ing|ed)?|lined? up|take|took|get|go|went|come|came|stay(?:s|ed)?|sit(?:s|ting)?|play(?:s|ing)?|kick(?:s|ed)?|spread|spill(?:s|ed)?|tak(?:es|ing)|check(?:s|ed)?|pull(?:s|ed)?|time|pick(?:s|ed)?|drop(?:s|ped)?(?: it)?|bounce[sd]?|catch|took \w+|throw it|threw it) out\b/g;
   while ((m = reP.exec(s))) defSpans.push([m.index, m.index+m[0].length]);
   const blockNames = () => used.concat(defSpans);
-  // formation and play names
-  const fm = findName(s, dict.forms, blockNames());
+  // the coach's tags first, so "H bubble" or "X glance" stay tags and never become a play
+  const tg = [];
+  if (dict.tags && dict.tags.length){
+    const td = {}; dict.tags.forEach(t=>td[t]=1);
+    let t; while ((t = findName(s, td, blockNames()))){ mark(t.i,t.len); tg.push(cap(t.name)); }
+  }
+  // formation: the coach's own names beat built-in words ("pistol bronze" is Bronze)
+  const own = dict.ownForms ? Object.fromEntries(Object.entries(dict.forms).filter(([k])=>dict.ownForms.includes(k))) : null;
+  const fm = (own && findName(s, own, blockNames())) || findName(s, dict.forms, blockNames());
   if (fm){
     mark(fm.i, fm.len);
     let label = cap(fm.name), after = s.slice(fm.i+fm.len);
@@ -311,14 +338,12 @@ function parseCall(text, dict, prev){
     if (dir && !/\b(right|left)\b/.test(fm.name)){ label += dir[1].startsWith("r") ? " Right" : " Left"; mark(fm.i+fm.len, dir[0].length); }
     o.formation = label; o.family = fm.val || null;
   }
-  const pl = findName(s, dict.plays, blockNames());
-  if (pl){ mark(pl.i, pl.len); o.play = cap(pl.name); o.playType = pl.val || null; }
-  if (dict.tags && dict.tags.length){
-    const td = {}; dict.tags.forEach(t=>td[t]=1);
-    const tg = []; let t;
-    while ((t = findName(s, td, blockNames()))){ mark(t.i,t.len); tg.push(cap(t.name)); }
-    if (tg.length) o.tags = tg.join(", ");
-  }
+  // every play named; a packaged call ("hot razer glove", "stack grass vegas") keeps the run as the play and the rest as tags
+  const pls = []; let pq;
+  while ((pq = findName(s, dict.plays, blockNames()))){ mark(pq.i, pq.len); pls.push(pq); }
+  const pl = pls.find(x=>x.val==="run"||x.val==="qb-run") || pls[0] || null;
+  if (pl){ o.play = cap(pl.name); o.playType = pl.val || null; for (const x of pls) if (x!==pl && x.name!==pl.name) tg.push(cap(x.name)); }
+  if (tg.length) o.tags = [...new Set(tg)].join(", ");
   if (!o.playType && /\bplay[\s-]?action\b|\bpa\b/.test(s)) o.playType = "play-action";
   const firstName = Math.min(fm ? fm.i : 1e9, pl ? pl.i : 1e9);
 
@@ -394,12 +419,14 @@ function parseCall(text, dict, prev){
   else if (/\bincomplet|\bincompletion\b|\binc\b|\bdropped\b|\bdrop\b|\boverthr[eo]wn?\b|\bbatted\b|\bthrown away\b|\bthrew it away\b/.test(rest)) { o.outcome = "incomplete"; o.gain = 0; }
   else if (/\bflag\b|\bpenalty\b|\bholding\b|\bfalse start\b|\boffsides?\b|\bpass interference\b|\bdpi\b|\bopi\b/.test(rest)) o.outcome = "penalty";
   if (o.outcome!=="incomplete"){
-    if ((m = rest.match(/\b(?:loss|lost|lose|loses|sacked for|sack for|minus)\s+(?:of\s+)?(\d{1,2})\b/))) o.gain = -(+m[1]);
+    // the coach's "+7" / "plus 7" / "minus 1" result wins over loose numbers in the talk
+    const sg = signed.length ? signed[signed.length-1] : null;
+    if (sg){ o.gain = sg.neg ? -sg.n : sg.n; }
+    else if ((m = rest.match(/\b(?:loss|lost|lose|loses|sacked for|sack for|minus)\s+(?:of\s+)?(\d{1,2})\b/))) o.gain = -(+m[1]);
     else if ((m = rest.match(/\b(\d{1,2})\s*yards?\s*(?:loss|lost|backwards)\b/))) o.gain = -(+m[1]);
-    else if ((m = rest.match(/\b(?:gain|gained|gains|pick(?:ed|s)?\s+up|for|got|gets|caught for|complete for|run for)\s+(?:of\s+|a\s+)?(\d{1,2})\b/))) o.gain = +m[1];
+    else if ((m = rest.match(/\b(?:gain|gained|gains|pick(?:ed|s)?\s+up|for|caught for|complete for|run for)\s+(?:of\s+|a\s+)?(\d{1,2})\b/))) o.gain = +m[1];
     else if ((m = rest.match(/\b(\d{1,2})\s*yards?\s*(?:gain|pickup|run|catch|completion)?\b/))) o.gain = +m[1];
     else if (/\bno gain\b|\bstuffed\b|\bfor nothing\b|\bfor 0\b/.test(rest)) o.gain = 0;
-    else if (signed.length){ const g = signed[signed.length-1]; o.gain = g.neg ? -g.n : g.n; }
   }
   if (o.outcome==="td" && o.gain==null && o.yd!=null && o.side) o.gain = o.side==="-" ? 100-o.yd : o.yd;
   if (!o.outcome && /\bfirst down\b|\b1st down\b|\bmoves? the chains\b|\bmoved the chains\b/.test(rest)) o.outcome = "first-down";
@@ -460,7 +487,13 @@ function parseSheet(text){
   for (let line of String(text).replace(/\r/g,"").split("\n")){
     line = line.replace(/^\s*(?:[-*•·]|\d+[.)])\s+/,"");
     const h = line.match(HEAD);
-    if (h){ kind = kindOf(h[1]); headType = kind==="play" ? typeOf(h[1]) : null; line = line.slice(h[0].length); }
+    const ha = line.match(/^\s*(?:heard as|sounds like|dictation)\s*[:\-–—]\s*/i);
+    if (ha){ line = line.slice(ha[0].length); }
+    else if (h){ kind = kindOf(h[1]); headType = kind==="play" ? typeOf(h[1]) : null; line = line.slice(h[0].length); }
+    if (ha){
+      for (const pr of line.split(/[,;|]/)){ const q = pr.split(/\s*(?:=|->|→)\s*/); if (q.length===2 && q[0].trim().length>1 && q[1].trim().length>1){ const nm = q[0].trim().toLowerCase(); if (!seen.has("alias:"+nm)){ seen.add("alias:"+nm); out.push({kind:"alias", name:nm, sub:q[1].trim().toLowerCase()}); } } }
+      continue;
+    }
     // a spreadsheet row "name, type" or "name<TAB>type": keep only the first cell when the rest names a kind
     const cells = line.split(/\t/);
     const parts = cells.length > 1 ? [cells[0]] : line.split(/[,;|]/);
@@ -554,7 +587,7 @@ function dictNow(){
   for (const t of (MYTERMS.tags||[])){ delete plays[t]; delete forms[t]; }
   for (const f in MYTERMS.forms) if (!(f in MYTERMS.plays)) delete plays[f];
   for (const p in MYTERMS.plays) if (!(p in MYTERMS.forms)) delete forms[p];
-  return { forms, plays, tags: [...new Set([...BASE_TAGS, ...(MYTERMS.tags||[])])] };
+  return { forms, plays, tags: [...new Set([...BASE_TAGS, ...(MYTERMS.tags||[])])], alias: MYTERMS.alias||{}, ownForms: Object.keys(MYTERMS.forms) };
 }
 
 /* ---------- football math ---------- */
@@ -659,7 +692,7 @@ function playCard(p){
   let html = `<article class="play${p.id===justAdded?" new":""}" data-id="${p.id}">
     <div class="ph"><span class="pn">#${p.n} · Q${p.q}</span><span class="dd">${dd}${est}</span><span class="spot">${fmtSpot(p)}${p.hash?" · "+esc(p.hash)+" hash":""}</span>
     <span class="res ${s===true?"s":s===false?"f":"n"}">${fmtGain(p)}</span></div>
-    <div class="chips">${p.formation?chip("",[p.personnel,p.formation].filter(Boolean).join(" ")):`<span class="chip miss">no formation heard</span>`}${chip("",p.play)}${chip("",p.tags)}${chip("vs",p.coverage)}${chip("",p.front)}${chip("",press)}${chip("",p.blitzer?p.blitzer+" came":null)}${chip("",p.rotation)}</div>
+    <div class="chips">${p.formation?chip("",[p.personnel,p.formation].filter(Boolean).join(" ")):`<span class="chip miss">no formation heard</span>`}${chip("",p.play)}${chip("",p.tags)}${chip("Box",p.box)}${chip("vs",p.coverage)}${chip("",p.front)}${chip("",press)}${chip("",p.blitzer?p.blitzer+" came":null)}${chip("",p.rotation)}</div>
     ${p.weakness||p.defender ? `<div class="chips">${chip(p.defender||"Note", p.weakness||"", "weak")}</div>`:""}
     <div class="raw">“${esc(p.raw)}”</div>
     <div class="pf"><button class="linkbtn" data-act="edit" data-id="${p.id}" style="margin-left:auto">${editing===p.id?"Close":"Fix"}</button></div>`;
@@ -677,7 +710,8 @@ function editForm(p){
     ${f("coverage","Coverage")}${f("pressure","Rushers","number")}
     ${f("gain","Gain","number")}${sel("outcome","Outcome",[["",""],["td","TD"],["first-down","1st down"],["incomplete","Incomplete"],["sack","Sack"],["int","INT"],["fumble","Fumble"],["penalty","Penalty"]])}
     ${f("defender","Defender")}${f("weakness","Weakness")}
-    ${sel("q","Quarter",[["1","Q1"],["2","Q2"],["3","Q3"],["4","Q4"],["5","OT"]])}${f("front","Front")}
+    ${f("box","Box (e.g. 4-2)")}${f("front","Front")}
+    ${sel("q","Quarter",[["1","Q1"],["2","Q2"],["3","Q3"],["4","Q4"],["5","OT"]])}
     ${f("tags","Tags")}${f("hash","Hash (L/M/R)")}
     <div class="acts"><button class="btn primary" data-act="save" data-id="${p.id}">Save</button>
     <button class="btn" data-act="del" data-id="${p.id}">Delete play</button>
@@ -732,6 +766,16 @@ function renderTend(){
   const sitRows = groupRows([...groups.entries(), ...zones]);
   h += `<section class="card"><h2>${esc(g.opp)}'s looks by situation</h2><p class="sub">Coverage they showed, how often they brought 5+ or blitzed, and ${esc(offName)}'s success rate (40 / 60 / 100).</p>
     <div class="tw"><table><thead><tr><th>Situation</th><th>N</th><th>Coverage</th><th>5+/Blitz</th><th>Succ.</th></tr></thead><tbody>${sitRows||`<tr><td colspan="5" style="color:var(--muted)">Down and distance not logged yet.</td></tr>`}</tbody></table></div></section>`;
+  // box count: their box by situation and by our formation family
+  const boxRowsOf = gs => gs.filter(([,l])=>l.some(p=>p.box)).map(([sit,l])=>{
+    const bl = l.filter(p=>p.box), t = tally(bl,"box"), ns = bl.filter(p=>p.boxN), avg = ns.length ? (ns.reduce((a,p)=>a+p.boxN,0)/ns.length).toFixed(1) : "—";
+    const j = bl.filter(p=>success(p)!=null), sc = j.filter(p=>success(p)).length;
+    return `<tr><td>${esc(sit)}</td><td class="num">${bl.length}</td><td>${t.slice(0,2).map(([b,k])=>`<b>${esc(b)}</b> ${k}/${bl.length}`).join(" · ")}</td><td class="num">${avg}</td><td class="num ${pctCls(sc,j.length)}">${pct(sc,j.length)}</td></tr>`;}).join("");
+  const boxRows = boxRowsOf([...groups.entries(), ...zones]);
+  const fbx = new Map(); for (const p of ps) if (p.family && p.box){ const k = (Object.fromEntries(FAMILIES))[p.family]||p.family; (fbx.get(k)||fbx.set(k,[]).get(k)).push(p); }
+  const boxFam = boxRowsOf([...fbx.entries()].sort((a,b)=>b[1].length-a[1].length));
+  if (boxRows) h += `<section class="card"><h2>${esc(g.opp)}'s box</h2><p class="sub">The box you called out (“4-2 box”, “7 in the box”, “light box”), by situation.</p>
+    <div class="tw"><table><thead><tr><th>Situation</th><th>N</th><th>Box</th><th>Avg in box</th><th>Succ.</th></tr></thead><tbody>${boxRows}</tbody></table></div>${boxFam?`<div class="tw"><table><thead><tr><th>vs formation</th><th>N</th><th>Box</th><th>Avg in box</th><th>Succ.</th></tr></thead><tbody>${boxFam}</tbody></table></div>`:""}</section>`;
   const famLabel = Object.fromEntries(FAMILIES);
   const fm = new Map(); for (const p of ps) if (p.family){ const k = famLabel[p.family]||p.family; (fm.get(k)||fm.set(k,[]).get(k)).push(p); }
   const fRows = groupRows([...fm.entries()].sort((a,b)=>b[1].length-a[1].length));
@@ -808,7 +852,8 @@ function renderTerms(){
   const rows = [
     ...Object.entries(MYTERMS.forms).map(([n,f])=>({k:"form",n,d:"Formation · "+(fam[f]||"no family")})),
     ...Object.entries(MYTERMS.plays).map(([n,t])=>({k:"play",n,d:"Play · "+(pt[t]||"no type")})),
-    ...(MYTERMS.tags||[]).map(n=>({k:"tag",n,d:"Tag"}))
+    ...(MYTERMS.tags||[]).map(n=>({k:"tag",n,d:"Tag"})),
+    ...Object.entries(MYTERMS.alias||{}).map(([n,t])=>({k:"alias",n,d:"Heard as → "+cap(t)}))
   ];
   const d = drillTerms(), nDrill = Object.keys(d.plays).length;
   $("#termList").innerHTML = (rows.length ? rows.map(r=>`<div class="term"><span><b>${esc(cap(r.n))}</b> <small>${esc(r.d)}</small></span><button class="linkbtn" data-rm="${r.k}" data-n="${esc(r.n)}">Remove</button></div>`).join("") : `<div class="hint">No names of your own yet. Add them here, or type a new name in Fix on any play.</div>`)
@@ -819,6 +864,7 @@ function addTerm(kind, name, sub){
   if (name.length<2) return false;
   if (kind==="form") MYTERMS.forms[name] = sub||null;
   else if (kind==="play") MYTERMS.plays[name] = sub||null;
+  else if (kind==="alias"){ const to = String(sub||"").toLowerCase().trim(); if (to.length<2) return false; (MYTERMS.alias ||= {})[name] = to; }
   else { MYTERMS.tags ||= []; if (!MYTERMS.tags.includes(name)) MYTERMS.tags.push(name); }
   saveTerms(); return true;
 }
@@ -903,7 +949,8 @@ $("#feed").onclick = e => {
       if (k==="hash" && v) v = v[0].toUpperCase();
       p[k] = v;
     }
-    p.est = [];
+    if (p.box){ const bm = String(p.box).match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.box = bm ? bm[1]+"-"+bm[2] : p.box; p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(p.box,10)||p.boxN||null); } else p.boxN = null;
+    p.est = []; p.fixed = true;
     const d = dictNow();
     if (p.formation){ const base = p.formation.toLowerCase().replace(/\s+(right|left)$/,""); if (!(base in d.forms) || (p.family && d.forms[base]!==p.family)) addTerm("form", base, p.family); }
     if (p.play){ const n = p.play.toLowerCase(); if (!(n in d.plays)) addTerm("play", n, p.playType); }
@@ -923,8 +970,8 @@ function renderPaste(){
   const el = $("#pastePrev");
   if (!PASTE.length){ el.innerHTML = ""; return; }
   const n = k => PASTE.filter(x=>x.kind===k).length;
-  el.innerHTML = `<div class="hint" style="margin-bottom:6px">${n("form")} formations · ${n("play")} plays · ${n("tag")} motions/tags. Fix anything that's in the wrong group, then save.</div>`
-    + PASTE.map((x,i)=>`<div class="term" style="flex-wrap:wrap">
+  el.innerHTML = `<div class="hint" style="margin-bottom:6px">${n("form")} formations · ${n("play")} plays · ${n("tag")} motions/tags${n("alias")?" · "+n("alias")+" heard-as fixes":""}. Fix anything that's in the wrong group, then save.</div>`
+    + PASTE.map((x,i)=>x.kind==="alias" ? `<div class="term"><span style="flex:1 1 140px;min-width:0">Heard <b>“${esc(x.name)}”</b> → <b>${esc(cap(x.sub))}</b></span><button class="linkbtn" data-px="${i}" type="button">Remove</button></div>` : `<div class="term" style="flex-wrap:wrap">
       <span style="flex:1 1 140px;min-width:0"><b>${esc(x.name)}</b></span>
       <select data-pk="${i}" aria-label="Group for ${esc(x.name)}" class="btn" style="height:36px;padding:0 6px"><option value="form" ${x.kind==="form"?"selected":""}>Formation</option><option value="play" ${x.kind==="play"?"selected":""}>Play</option><option value="tag" ${x.kind==="tag"?"selected":""}>Motion / tag</option></select>
       <select data-ps="${i}" aria-label="Family or type for ${esc(x.name)}" class="btn" style="height:36px;padding:0 6px" ${x.kind==="tag"?"hidden":""}>${subOpts(x.kind, x.sub)}</select>
@@ -959,6 +1006,7 @@ $("#addTerm").onclick = () => { if (addTerm($("#addKind").value, $("#addName").v
 $("#termList").onclick = e => {
   const b = e.target.closest("[data-rm]"); if (!b) return;
   const k = b.dataset.rm, n = b.dataset.n;
+  if (k==="alias") { delete (MYTERMS.alias||{})[n]; saveTerms(); renderTerms(); return; }
   if (k==="form") delete MYTERMS.forms[n]; else if (k==="play") delete MYTERMS.plays[n]; else MYTERMS.tags = (MYTERMS.tags||[]).filter(x=>x!==n);
   saveTerms(); renderTerms();
 };
@@ -975,10 +1023,21 @@ $("#importFile").onchange = async e => {
     if (j.app!=="booth-log" || !j.data || !j.data.games) throw 0;
     let n = 0;
     for (const [id,g] of Object.entries(j.data.games)){ if (!DATA.games[id]) n++; DATA.games[id] = g; DATA.plays[id] = {...(DATA.plays[id]||{}), ...(j.data.plays[id]||{})}; }
-    if (j.terms){ MYTERMS.forms = {...MYTERMS.forms, ...(j.terms.forms||{})}; MYTERMS.plays = {...MYTERMS.plays, ...(j.terms.plays||{})}; MYTERMS.tags = [...new Set([...(MYTERMS.tags||[]), ...(j.terms.tags||[])])]; saveTerms(); }
+    if (j.terms){ MYTERMS.forms = {...MYTERMS.forms, ...(j.terms.forms||{})}; MYTERMS.plays = {...MYTERMS.plays, ...(j.terms.plays||{})}; MYTERMS.tags = [...new Set([...(MYTERMS.tags||[]), ...(j.terms.tags||[])])]; MYTERMS.alias = {...(MYTERMS.alias||{}), ...(j.terms.alias||{})}; saveTerms(); }
     saveData(); render(); $("#backupMsg").textContent = "Loaded. " + n + " new game" + (n===1?"":"s") + " added; games you already had were merged.";
   } catch { $("#backupMsg").textContent = "That file isn't a Booth Log backup. Pick the file that starts with booth-log-backup."; }
   e.target.value = "";
+};
+$("#rereadGame").onclick = () => {
+  if (!gid || game()?.example) { $("#rereadMsg").textContent = "Pick one of your own games first."; return; }
+  const d = dictNow(), ps = plays().sort((a,b)=>a.t-b.t);
+  let prev = null, n = 0, kept = 0;
+  for (const p of ps){
+    if (p.fixed){ prev = p; kept++; continue; }
+    const np = finish({...parseCall(p.raw||"", d, prev), raw:p.raw, q:p.q, drive:p.drive, n:p.n, t:p.t}, prev);
+    DATA.plays[gid][p.id] = np; prev = np; n++;
+  }
+  saveData(); render(); $("#rereadMsg").textContent = "Re-read " + n + " plays" + (kept ? ", kept " + kept + " you fixed by hand." : ".");
 };
 $("#delGame").onclick = () => { if (gid) $("#delGameYes").hidden = false; };
 $("#delGameYes").onclick = () => { if (!gid) return; delete DATA.games[gid]; delete DATA.plays[gid]; saveData(); const l = Object.keys(DATA.games)[0]; selectGame(l||null); setView("log"); };
