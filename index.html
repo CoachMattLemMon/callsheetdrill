@@ -2190,10 +2190,12 @@ function sitMatch(k,s){
  const d=m[1]==='2nd'?2:3,b=s.dist>=7?'long':s.dist>=4?'med':'short';return s.down===d&&b===m[2];
 }
 const RULES=[['blitz','Check blitz'],['run','Check run'],['best','No check: best plan call']];
-function blankPlan(){return{v:1,week:'',opp:null,form:'',side:'R',run:'',blitz:'',looks:{c0:'blitz',c1:'blitz',c2:'run',c3:'best',c4:'run'},lookFilm:{},sits:[],calls:[],targets:[],film:'',book:[],forms:{},fromLink:false};}
+const APPROACH={control:{label:'Ball control',sub:'Run first, wear them down, shorten the game',pct:70},balanced:{label:'Balanced',sub:'Take what the defense gives',pct:50},aggressive:{label:'Aggressive',sub:'Take shots, stay on the attack',pct:35}};
+function blankPlan(){return{v:1,approach:'balanced',runPct:null,week:'',opp:null,form:'',side:'R',run:'',blitz:'',looks:{c0:'blitz',c1:'blitz',c2:'run',c3:'best',c4:'run'},lookFilm:{},sits:[],calls:[],targets:[],film:'',book:[],forms:{},fromLink:false};}
 function cleanPlan(p){
  const b=blankPlan();if(!p||typeof p!=='object')return b;
  const str=(v,n)=>String(v??'').slice(0,n||80);
+ b.approach=APPROACH[p.approach]?p.approach:'balanced';{const r=parseInt(p.runPct,10);b.runPct=Number.isFinite(r)&&r>=0&&r<=100?r:null;}
  b.week=str(p.week,40);b.form=str(p.form,24);b.side=p.side==='L'?'L':'R';b.run=str(p.run);b.blitz=str(p.blitz);b.film=safeUrl(p.film);
  if(p.looks)for(const k of COVS)if(RULES.some(r=>r[0]===p.looks[k]))b.looks[k]=p.looks[k];
  if(p.lookFilm)for(const k of COVS)b.lookFilm[k]=safeUrl(p.lookFilm[k]);
@@ -2228,6 +2230,10 @@ function mkEntry(name,extra){
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(realR()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const sitRowFor=s=>PLAN.sits.find(r=>r.play&&entryByName(r.play)&&sitMatch(r.sit,s));
 /* three plan calls for this snap: the situational call when one fits, then a mix of run and pass from the plan */
+/* how the plan wants to play: ball control runs and wears them down, aggressive takes shots */
+const runPct=()=>PLAN.runPct!=null?PLAN.runPct:(APPROACH[PLAN.approach]||APPROACH.balanced).pct;
+const isRunAct=a=>CATS[a]&&CATS[a].grp==='run';
+function approachLine(){const a=APPROACH[PLAN.approach]||APPROACH.balanced;return a.label+(PLAN.runPct!=null?' · '+PLAN.runPct+'% run':'');}
 function planCallsFor(s){
  const taken=new Set([PLAN.run,PLAN.blitz].filter(Boolean)),out=[];
  const sr=sitRowFor(s);
@@ -2236,7 +2242,12 @@ function planCallsFor(s){
  let pool=PLAN.calls.filter(n=>!taken.has(n)&&fit(n));
  if(pool.length<3-out.length)pool=pool.concat(planNames().filter(n=>!taken.has(n)&&!pool.includes(n)&&fit(n)));
  shuffle(pool);
- while(out.length<3&&pool.length){const have=new Set(out.map(o=>o.grp));let i=pool.findIndex(n=>!have.has(CATS[entryByName(n)[1]].grp));if(i<0)i=0;const e=mkEntry(pool.splice(i,1)[0]);if(e)out.push(e);}
+ /* the approach decides the mix: about runPct of the three slots are runs */
+ const want=Math.min(3,Math.max(0,Math.floor(3*runPct()/100+realR())));
+ while(out.length<3&&pool.length){
+  const needRun=out.filter(o=>o.grp==='run').length<want;
+  let i=pool.findIndex(n=>isRunAct(entryByName(n)[1])===needRun);
+  if(i<0)i=0;const e=mkEntry(pool.splice(i,1)[0]);if(e)out.push(e);}
  return shuffle(out).map(c=>({...c,eyebrow:'Plan call'}));
 }
 /* what the plan says to call: a situational call first, then the coverage's rule, else the best of the plan calls */
@@ -2247,6 +2258,11 @@ function planAnswer(s,look,rows){
  if(rule==='blitz'&&PLAN.blitz&&rows.some(r=>r.pid==='blitz'))return{real:PLAN.blitz,why:LOOKS[look].label+' is a blitz look. The plan says check blitz: '+PLAN.blitz+'.'};
  if(rule==='run'&&PLAN.run&&rows.some(r=>r.pid==='run'))return{real:PLAN.run,why:LOOKS[look].label+' leaves a light box. The plan says check run: '+PLAN.run+'.'};
  const calls=rows.filter(r=>!r.pid);const pool=calls.length?calls:rows;const best=pool.reduce((a,b)=>b.v>a.v?b:a,pool[0]);
+ /* no check: the approach picks the side of the ball, then the best call on that side */
+ const p=runPct(),lean=p>=60?'run':p<=40?'pass':null;
+ if(lean){const side=pool.filter(r=>(lean==='run')===isRunAct(r.act));
+  if(side.length){const b=side.reduce((a,c)=>c.v>a.v?c:a,side[0]);
+   return{real:b.real,why:LOOKS[look].label+': no check. '+approachLine()+' says '+(lean==='run'?'run it':'throw it')+'. The best '+(lean==='run'?'run':'pass')+' here was '+b.real+'.'+(b.real!==best.real?' ('+best.real+' graded a little better, but that\'s not the plan.)':'')};}}
  return{real:best.real,why:LOOKS[look].label+': no check. The best plan call here was '+best.real+'.'};
 }
 function planSpot(key){
@@ -2294,7 +2310,7 @@ function choosePlan(opt){busyThen(()=>{
  G.log.push({clk:fmt(sb.t),dot:f.g.k,text});G.feeds.forEach(x=>x.text=text);G.plays++;
  G.last={opt,e,sb,look:G.look,tgt:'auto',form:opt.form,cat:opt.act,special:null};
  G.prep={f,ans,ok,name,text};
- if(PRUN)PRUN.res[PRUN.i]={ok,g:f.g,sit:G.sp.title,look:G.look,mine:name,ans:ans.real};
+ if(PRUN)PRUN.res[PRUN.i]={run:isRunAct(opt.act),ok,g:f.g,sit:G.sp.title,look:G.look,mine:name,ans:ans.real};
  G.phase='result';renderAll();
 });}
 function nextRep(){if(!PRUN)return;PRUN.i++;if(PRUN.i>=PRUN.reps.length){G.phase='plandone';renderAll();return;}start(PRUN.reps[PRUN.i]);}
@@ -2327,6 +2343,7 @@ function renderPlanSummary(){
  const sc=res.length?Math.round(res.reduce((a,r)=>a+r.g.score,0)/res.length):null;
  el.innerHTML='<div class="summary"><div class="bigscore">'+ok+'/'+res.length+'<small>Plan calls right</small></div><div><h2 class="sumhead">'+(PLAN.opp?'vs '+esc(PLAN.opp.name):'Game plan')+'</h2>'
   +'<p style="margin:4px 0">Call grade '+(sc!=null?sc:'—')+'. '+(ok===res.length?'You ran the plan every snap.':'Look at the reps you missed before Friday.')+'</p>'
+  +(res.length?'<p class="hint" style="margin:0 0 6px">You ran it '+Math.round(res.filter(r=>r.run).length/res.length*100)+'% of the time. The plan ('+esc(approachLine())+') wants about '+runPct()+'%.</p>':'')
   +'<div class="gplist">'+res.map(r=>'<div class="gprow"><span><i class="dot '+(r.ok?'best':'miss')+'"></i> '+esc(r.sit)+' · '+esc(LOOKS[r.look].label)+'</span><span>'+(r.ok?esc(r.ans):esc(r.mine)+' → plan: '+esc(r.ans))+'</span></div>').join('')+'</div>'
   +'<div class="actions"><button class="btn primary" id="gpAgain">Run the reps again</button><button class="btn" id="gpBack">Back to the plan</button></div></div></div>';
  $('#gpAgain').onclick=startPlanReps;$('#gpBack').onclick=()=>openPlan('players');
@@ -2346,6 +2363,7 @@ function rulesFor(r){return COVS.filter(k=>PLAN.looks[k]===r).map(k=>LOOKS[k].la
 function planPlayersHtml(){
  const o=PLAN.opp;let h='<div class="gpsec gpboard"><div class="glab" style="color:var(--board-amber)">'+esc(PLAN.week||'This week')+' · Game plan</div><div class="gpvs">'+(o?'vs '+esc(o.name):'This week\'s plan')+'</div><div style="color:#c9d4c8">Read it, watch the film, then rep it.</div></div>';
  if(!planReady())return h+'<div class="gpsec"><p style="margin:0">There\'s no plan yet. A coach sets it under <b>Set the plan</b>, then sends the link to players.</p></div>';
+ h+='<div class="gpsec"><h3>How we play it</h3><div class="gprow"><span><b>'+esc(approachLine())+'</b></span><span class="gpmut">'+esc((APPROACH[PLAN.approach]||APPROACH.balanced).sub)+'</span></div></div>';
  h+='<div class="gpsec"><h3>Our checks</h3>'
   +(PLAN.run?'<div class="gprow"><span>Check run <span class="gpmut">'+esc(rulesFor('run')||'when the plan says')+'</span></span><b>'+playLine(PLAN.run)+'</b></div>':'')
   +(PLAN.blitz?'<div class="gprow"><span>Check blitz <span class="gpmut">'+esc(rulesFor('blitz')||'when the plan says')+'</span></span><b>'+playLine(PLAN.blitz)+'</b></div>':'')+'</div>';
@@ -2366,7 +2384,10 @@ function planEditHtml(){
  let h='<div class="gpsec"><h3>The week</h3><div class="gp2"><label class="gplab">Week<input class="gpin" type="text" data-gp="week" value="'+esc(PLAN.week)+'" placeholder="Week 9" maxlength="40"></label>'
   +'<label class="gplab">Opponent'+sel('opp',PLAN.opp?PLAN.opp.key:'',[['','Normal defenses']].concat(profs.map(p=>[p.key,p.name+' ('+p.snaps+' snaps)'])))+'</label>'
   +'<label class="gplab">Formation for reps'+sel('form',PLAN.form,[['','Each play\'s own']].concat(BASEF().map(k=>[k,FORMS[k].label.replace(/ Rt$/,'')])))+'</label>'
-  +'<label class="gplab">Strength'+sel('side',PLAN.side,[['R','Right'],['L','Left']])+'</label></div>'
+  +'<label class="gplab">Strength'+sel('side',PLAN.side,[['R','Right'],['L','Left']])+'</label>'
+  +'<label class="gplab">Approach'+sel('approach',PLAN.approach,Object.entries(APPROACH).map(([k,a])=>[k,a.label]))+'</label>'
+  +'<label class="gplab">Run % (optional)<input class="gpin" type="number" inputmode="numeric" min="0" max="100" data-gp="runpct" value="'+(PLAN.runPct!=null?PLAN.runPct:'')+'" placeholder="'+(APPROACH[PLAN.approach]||APPROACH.balanced).pct+'"></label></div>'
+  +'<p class="gpmut" style="margin:8px 0 0">'+esc((APPROACH[PLAN.approach]||APPROACH.balanced).sub)+'. Reps offer about '+runPct()+'% runs, and when there\'s no check the plan\'s call '+(runPct()>=60?'is the best run':runPct()<=40?'is the best pass':'is the best call either way')+'.</p>'
   +(profs.length?'':'<p class="gpmut" style="margin:8px 0 0">Chart them in <a href="logger/">Booth Log</a> and tap Send to drill, and they show up here.</p>')+'</div>';
  h+='<div class="gpsec"><h3>Checks</h3><div class="gp2"><label class="gplab">Check run'+sel('run',PLAN.run,pn)+'</label><label class="gplab">Check blitz'+sel('blitz',PLAN.blitz,pn)+'</label></div>'
   +'<p class="gpmut" style="margin:10px 0 6px">What each look calls for, and a Hudl clip of it (optional):</p>'
@@ -2402,6 +2423,8 @@ function planChange(e){
  if(gp==='week')PLAN.week=t.value;
  else if(gp==='opp'){const st=load('csd-opp',null);PLAN.opp=t.value&&st&&st.profiles?st.profiles[t.value]||null:null;}
  else if(gp==='form')PLAN.form=t.value;else if(gp==='side')PLAN.side=t.value;
+ else if(gp==='approach')PLAN.approach=APPROACH[t.value]?t.value:'balanced';
+ else if(gp==='runpct'){const r=parseInt(t.value,10);PLAN.runPct=Number.isFinite(r)?Math.max(0,Math.min(100,r)):null;if(e.type==='change'){savePlan();renderPlan();return;}rerender=false;}
  else if(gp==='run')PLAN.run=t.value;else if(gp==='blitz')PLAN.blitz=t.value;
  else if(gp==='rule')PLAN.looks[k]=t.value;
  else if(gp==='lookfilm'){PLAN.lookFilm[k]=safeUrl(t.value);rerender=false;}
