@@ -210,6 +210,13 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
       </div>
       <div class="hint" id="backupMsg" role="status"></div>
     </section>
+    <section class="card">
+      <h2>Import from Hudl</h2>
+      <p class="sub">In Hudl, export a game's breakdown (the playlist's ⋯ menu → Export Data, all fields), then pick the file here. Each side comes in as its own game.</p>
+      <div class="row"><label class="btn" for="hudlFile" style="display:inline-flex;align-items:center">Pick the Hudl file</label><input type="file" id="hudlFile" accept=".xlsx,.xls,.csv,text/csv" hidden></div>
+      <div class="hint" id="hudlMsg" role="status"></div>
+      <div id="hudlPrev"></div>
+    </section>
     <section class="card" id="aiCard">
       <h2>AI reader</h2>
       <p class="sub">Reads each drive's booth talk the way a coach would: splits the snaps, keeps the calls, box, results and reads, and skips the chatter. Needs signal. Without it, the built-in reader does the job.</p>
@@ -460,7 +467,8 @@ function parseCall(text, dict, prev){
 /* a pasted sheet -> [{kind, name, sub}] ; labeled groups ("Formations:", "Plays", "Motions:") or a bare list */
 function guessFamily(n){
   n = " " + n.toLowerCase() + " ";
-  if (/\b(trips|trey|trio|tre|3x1|trey|triple)\b/.test(n)) return "3x1";
+  if (/\b(trips|trey|trio|tre|3x1|triple)\b/.test(n)) return "3x1";
+  if (/\b(dbls|dbl|dubs|doubles|2x2)\b/.test(n)) return "2x2";
   if (/\b(empty|quads|5 wide|five wide|psycho)\b/.test(n)) return "empty";
   if (/\b(bunch|stack|cluster|nub bunch)\b/.test(n)) return "bunch";
   if (/\b(wing t|wishbone|bone|full house|power i wing|double wing|t formation|diamond)\b/.test(n)) return "3-back";
@@ -781,7 +789,8 @@ let gid = ls.get("bl-gid", null), quarter = ls.get("bl-q", 1), filt = "all", vie
 const plays = () => Object.entries(DATA.plays[gid]||{}).map(([id,p])=>({id,...p}));
 const game = () => DATA.games[gid];
 const isScout = g => (g||{}).type==="scout";
-const gameLabel = g => g ? (g.example?"Example · ":"") + (isScout(g) ? "Film: "+g.opp+" D"+(g.faced?" vs "+g.faced:"") : "vs "+g.opp) + (g.date?" · "+g.date:"") : "";
+const isOffense = g => (g||{}).type==="offense";
+const gameLabel = g => g ? (g.example?"Example · ":"") + (isOffense(g) ? "Film: "+g.opp+" O"+(g.faced?" vs "+g.faced:"") : isScout(g) ? "Film: "+g.opp+" D"+(g.faced?" vs "+g.faced:"") : "vs "+g.opp) + (g.date?" · "+g.date:"") : "";
 if (gid && !DATA.games[gid]) gid = null;
 if (!gid){ const l = Object.entries(DATA.games).sort((a,b)=>(b[1].t||0)-(a[1].t||0))[0]; gid = l ? l[0] : null; }
 
@@ -892,6 +901,7 @@ function renderTend(){
   const g = game(), ps = filtered();
   const el = $("#v-tend");
   if (!ps.length){ el.innerHTML = `<div class="empty"><b>No plays ${filt==="all"?"yet":"in this filter"}.</b><br>Log drives on the Log tab and the tables fill in here.</div>`; return; }
+  if (isOffense(g)){ renderOffTend(g, ps, el); return; }
   const offName = isScout(g) ? (g.faced || "the offense") : "us";
   const judged = ps.filter(p=>success(p)!=null), succ = judged.filter(p=>success(p));
   const gains = ps.filter(p=>p.gain!=null), ypp = gains.length ? (gains.reduce((a,p)=>a+p.gain,0)/gains.length).toFixed(1) : "—";
@@ -942,6 +952,122 @@ function renderTend(){
   $("#sendDrill") && ($("#sendDrill").onclick = () => sendToDrill(g.opp));
 }
 
+/* ---------- an opponent's offense (from Hudl D rows): what they run, from where, by situation ---------- */
+function renderOffTend(g, ps, el){
+  const isRun = p => p.playType==="run" || p.playType==="qb-run";
+  const typed = l => l.filter(p=>p.playType);
+  const runPct = l => { const t = typed(l); return pct(t.filter(isRun).length, t.length); };
+  const top = (l,k,n) => { const t = tally(l,k), c = l.filter(p=>p[k]).length; return t.length ? t.slice(0,n||2).map(([v,x])=>`<b>${esc(v)}</b> ${x}/${c}`).join(" · ") : `<span style="color:var(--muted)">—</span>`; };
+  const succ = l => { const j = l.filter(p=>success(p)!=null), sc = j.filter(p=>success(p)).length; return `<td class="num ${pctCls(sc,j.length)}">${pct(sc,j.length)}</td>`; };
+  // with no play names tagged, the useful column is where the play goes: toward their strength, and left vs right
+  const hasPlay = ps.some(p=>p.play), hasDir = ps.some(p=>p.dir);
+  const toStr = l => { const k = l.filter(p=>p.dir && (p.str==="L"||p.str==="R")); return pct(k.filter(p=>p.dir===p.str).length, k.length); };
+  const lr = l => { const k = l.filter(p=>p.dir); return k.length ? `L ${k.filter(p=>p.dir==="L").length} · R ${k.filter(p=>p.dir==="R").length}` : "—"; };
+  const col5h = hasPlay ? "Play" : hasDir ? "To strength" : "", col5 = l => hasPlay ? `<td>${top(l,"play")}</td>` : hasDir ? `<td class="num">${toStr(l)}</td>` : "";
+  const gains = ps.filter(p=>p.gain!=null), ypp = gains.length ? (gains.reduce((a,p)=>a+p.gain,0)/gains.length).toFixed(1) : "—";
+  const j = ps.filter(p=>success(p)!=null);
+  let h = `<div class="stats">
+    <div class="stat"><div class="v">${ps.length}</div><div class="k">Plays</div></div>
+    <div class="stat"><div class="v">${runPct(ps)}</div><div class="k">Run</div></div>
+    <div class="stat"><div class="v">${ypp}</div><div class="k">Yds / play</div></div>
+    <div class="stat"><div class="v">${pct(j.filter(p=>success(p)).length,j.length)}</div><div class="k">Success</div></div></div>`;
+  const groups = new Map(SIT_ORDER.map(s=>[BUCKET_LABEL[s],[]]));
+  for (const p of ps){ const b = bucket(p); if (b) groups.get(BUCKET_LABEL[b]).push(p); }
+  const zones = [[BUCKET_LABEL.backed, ps.filter(p=>{const y=ytg(p);return y!=null&&y>=90})],[BUCKET_LABEL.redzone, ps.filter(p=>{const y=ytg(p);return y!=null&&y<=20})]];
+  const sit = [...groups.entries(), ...zones].filter(([,l])=>l.length).map(([s,l])=>`<tr><td>${esc(s)}</td><td class="num">${l.length}</td><td class="num">${runPct(l)}</td><td>${top(l,"formation")}</td>${col5(l)}${succ(l)}</tr>`).join("");
+  h += `<section class="card"><h2>${esc(g.opp)}'s offense by situation</h2><p class="sub">What they run and where they line up, with their success rate (40 / 60 / 100).</p>
+    <div class="tw"><table><thead><tr><th>Situation</th><th>N</th><th>Run</th><th>Formation</th>${col5h?`<th>${col5h}</th>`:""}<th>Succ.</th></tr></thead><tbody>${sit}</tbody></table></div></section>`;
+  const fm = new Map(); for (const p of ps) if (p.formation){ (fm.get(p.formation)||fm.set(p.formation,[]).get(p.formation)).push(p); }
+  const fr = [...fm.entries()].sort((a,b)=>b[1].length-a[1].length).map(([f,l])=>{ const gg = l.filter(p=>p.gain!=null); return `<tr><td>${esc(f)}</td><td class="num">${l.length}</td><td class="num">${runPct(l)}</td>${col5(l)}<td class="num">${gg.length?(gg.reduce((a,p)=>a+p.gain,0)/gg.length).toFixed(1):"—"}</td></tr>`; }).join("");
+  if (fr) h += `<section class="card"><h2>By formation</h2><div class="tw"><table><thead><tr><th>Formation</th><th>N</th><th>Run</th>${col5h?`<th>${col5h}</th>`:""}<th>Avg</th></tr></thead><tbody>${fr}</tbody></table></div></section>`;
+  const hs = [["L","Left hash"],["M","Middle"],["R","Right hash"]].map(([k,l])=>[l, ps.filter(p=>p.hash===k)]).filter(([,l])=>l.length);
+  if (hs.length) h += `<section class="card"><h2>By hash</h2><div class="tw"><table><thead><tr><th>Hash</th><th>N</th><th>Run</th><th>Formation</th>${hasDir?"<th>Goes</th>":hasPlay?"<th>Play</th>":""}</tr></thead><tbody>${hs.map(([l,x])=>`<tr><td>${l}</td><td class="num">${x.length}</td><td class="num">${runPct(x)}</td><td>${top(x,"formation")}</td>${hasDir?`<td class="num">${lr(x)}</td>`:hasPlay?`<td>${top(x,"play")}</td>`:""}</tr>`).join("")}</tbody></table></div></section>`;
+  const pm = new Map(); for (const p of ps) if (p.play){ (pm.get(p.play)||pm.set(p.play,[]).get(p.play)).push(p); }
+  const pr = [...pm.entries()].sort((a,b)=>b[1].length-a[1].length).map(([k,l])=>{ const gg = l.filter(p=>p.gain!=null); return `<tr><td>${esc(k)}</td><td class="num">${l.length}</td>${succ(l)}<td class="num">${gg.length?(gg.reduce((a,p)=>a+p.gain,0)/gg.length).toFixed(1):"—"}</td><td style="color:var(--muted)">${esc(tally(l,"formation").map(([f])=>f).slice(0,2).join(", "))}</td></tr>`; }).join("");
+  if (pr) h += `<section class="card"><h2>Their plays</h2><div class="tw"><table><thead><tr><th>Play</th><th>N</th><th>Succ.</th><th>Avg</th><th>From</th></tr></thead><tbody>${pr}</tbody></table></div></section>`;
+  el.innerHTML = h;
+}
+
+/* ---------- import from a Hudl breakdown export (.xlsx or .csv) ---------- */
+let HUDL = null;
+function loadXLSX(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"; sc.onload = () => res(window.XLSX); sc.onerror = () => rej(new Error("Couldn't load the spreadsheet reader. Check your signal and try again.")); document.head.appendChild(sc); });
+}
+const HCOLS = {down:["DN","DOWN"], dist:["DIST","DISTANCE"], yard:["YARD LN","YARD LINE","YDLN","FIELD POS"], hash:["HASH"], q:["QTR","QUARTER"], series:["SERIES","DRIVE"], num:["PLAY #","PLAY NUM","PLAY"], odk:["ODK"], type:["PLAY TYPE"], result:["RESULT"], gain:["GN/LS","GAIN","GAIN/LOSS","YDS"],
+  form:["OFF FORM","FORMATION","OFF FORMATION"], str:["OFF STR","STRENGTH"], play:["OFF PLAY","PLAY CALL"], dir:["PLAY DIR"], pers:["PERSONNEL","PERS"], motion:["MOTION"], back:["BACKFIELD"], tag:["TAG"], set:["SET"], prot:["PROTECTION"],
+  front:["DEF FRONT","FRONT"], cov:["COVERAGE","DEF COVERAGE"], blitz:["BLITZ"], team:["TEAM"], opp:["OPP TEAM","OPPONENT"]};
+function hudlRows(table){
+  const head = (table[0]||[]).map(h=>String(h||"").trim().toUpperCase());
+  const col = {}; for (const k in HCOLS){ const i = head.findIndex(h=>HCOLS[k].includes(h)); if (i>=0) col[k] = i; }
+  const rows = table.slice(1).map(r=>{ const o = {}; for (const k in col){ const v = r[col[k]]; o[k] = v==null ? "" : String(v).trim(); } return o; });
+  return {col, rows};
+}
+function hudlPlay(r, d, prev){
+  const num = v => { const n = parseInt(String(v).replace(/[^0-9-]/g,""),10); return Number.isFinite(n) ? n : null; };
+  const title = x => String(x||"").toLowerCase().replace(/\s+/g," ").trim().replace(/(^|[\s(\/-])([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+  const p = blank();
+  p.down = num(r.down); if (p.down!=null && (p.down<1||p.down>4)) p.down = null;
+  p.dist = num(r.dist);
+  const y = num(r.yard); if (y!=null && y!==0){ p.side = y<0 ? "-" : "+"; p.yd = Math.abs(y); } else if (y===0 || /^50$/.test(r.yard)){ p.side = "+"; p.yd = 50; }
+  p.hash = /^l/i.test(r.hash) ? "L" : /^r/i.test(r.hash) ? "R" : /^m/i.test(r.hash) ? "M" : null;
+  p.gain = num(r.gain);
+  const t = String(r.type||"").toLowerCase(); p.playType = /run/.test(t) ? "run" : /pass/.test(t) ? "pass" : null;
+  const res = String(r.result||"").toLowerCase();
+  p.outcome = /\btd\b|touchdown/.test(res) ? "td" : /intercept/.test(res) ? "int" : /fumble/.test(res) ? "fumble" : /sack/.test(res) ? "sack" : /incomplete/.test(res) ? "incomplete" : /penalty/.test(res) ? "penalty" : null;
+  if (!p.outcome && p.gain!=null && p.dist!=null && p.gain>=p.dist) p.outcome = "first-down";
+  if (p.outcome==="incomplete" && p.gain==null) p.gain = 0;
+  if (r.form){ p.formation = title(r.form); const f = p.formation.toLowerCase(); p.family = d.forms[f] || d.forms[f.replace(/\s+(right|left|rt|lt|r|l)$/,"")] || guessFamily(f); }
+  if (r.play){ p.play = title(r.play); const k = p.play.toLowerCase(); if (d.plays[k]) p.playType = d.plays[k] || p.playType; }
+  p.personnel = r.pers || null;
+  p.dir = /^l/i.test(r.dir) ? "L" : /^r/i.test(r.dir) ? "R" : null;
+  p.str = /^l/i.test(r.str) ? "L" : /^r/i.test(r.str) ? "R" : /^bal/i.test(r.str) ? "Bal" : null;
+  p.tags = [r.back, r.motion, r.tag, r.set, r.prot].filter(Boolean).map(title).join(", ") || null;
+  p.front = r.front ? title(r.front) : null; p.coverage = r.cov ? title(r.cov) : null;
+  if (r.blitz && !/^(n|no|none|0)$/i.test(r.blitz)){ p.blitz = true; p.blitzer = /^(y|yes)$/i.test(r.blitz) ? null : title(r.blitz); p.pressure = 5; }
+  const dd = p.down!=null ? ["","1st","2nd","3rd","4th"][p.down]+" & "+(p.dist??"?") : "";
+  p.raw = "Hudl · " + [dd, p.yd!=null ? (p.side==="-"?"−":"+")+p.yd : "", p.hash?p.hash+" hash":"", r.form, r.play, r.type, r.result, p.gain!=null?(p.gain>0?"+":"")+p.gain:""].filter(Boolean).join(" · ");
+  p.hudl = true; p.est = [];
+  return p;
+}
+function hudlPreview(name, table){
+  const {col, rows} = hudlRows(table);
+  if (col.down==null && col.form==null){ $("#hudlMsg").textContent = "That file doesn't look like a Hudl breakdown export (no DN or OFF FORM column)."; $("#hudlPrev").innerHTML = ""; HUDL = null; return; }
+  const snap = r => (r.down || r.form || r.play) && (/run|pass/i.test(r.type) || r.form || r.play);
+  const O = rows.filter(r=>/^o/i.test(r.odk||"o") && snap(r)), D = rows.filter(r=>/^d/i.test(r.odk) && snap(r));
+  const team = (O.find(r=>r.team)||{}).team || "Our team", opp = (O.find(r=>r.opp)||D.find(r=>r.opp)||{}).opp || "";
+  const hasDef = rows.some(r=>r.front||r.cov||r.blitz);
+  HUDL = {O, D, team, opp, name};
+  const used = Object.keys(col).map(k=>HCOLS[k][0]).join(", ");
+  $("#hudlMsg").textContent = "";
+  $("#hudlPrev").innerHTML = `<div class="ask" style="margin-top:8px">
+    <label for="hudlOpp">Opponent<input type="text" id="hudlOpp" value="${esc(opp.replace(/\s+high school$/i,""))}" autocomplete="off"></label>
+    <label class="row" style="gap:8px;font-weight:700;color:var(--ink)"><input type="checkbox" id="hudlO" ${O.length?"checked":"disabled"}> ${esc(team)} offense · ${O.length} snaps <span class="hint">→ our game</span></label>
+    <label class="row" style="gap:8px;font-weight:700;color:var(--ink)"><input type="checkbox" id="hudlD" ${D.length?"checked":"disabled"}> Opponent's offense · ${D.length} snaps <span class="hint">→ their offense film</span></label>
+    <div class="hint">Columns used: ${esc(used)}.${hasDef ? "" : " Front, coverage and blitz are blank in this file, so it won't add to Send to drill."}</div>
+    <div class="row"><button class="btn primary" id="hudlGo" type="button">Import</button><button class="btn ghost" id="hudlCancel" type="button">Cancel</button></div></div>`;
+}
+function hudlImport(){
+  if (!HUDL) return;
+  const opp = $("#hudlOpp").value.trim() || "Opponent", d = dictNow(), made = [];
+  const add = (rows, type, label) => {
+    if (!rows.length) return;
+    const id = "h" + Date.now().toString(36) + type[0], dt = new Date();
+    DATA.games[id] = {opp, date:(dt.getMonth()+1)+"/"+dt.getDate(), t:Date.now() + made.length, type, faced: type==="offense" ? HUDL.team : "us", hudl:true};
+    DATA.plays[id] = {}; let prev = null, n = 0; const t0 = Date.now();
+    rows.forEach((r,i) => { const p = hudlPlay(r, d, prev);
+      // Hudl's yard line is from the file owner's side; flip it when the other team has the ball
+      if (type==="offense" && p.side){ p.side = p.side==="-" ? "+" : "-"; if (p.yd===50) p.side = "+"; p.raw = p.raw.replace(/ · [−+]\d+ · /, " · " + (p.side==="-"?"−":"+") + p.yd + " · "); } p.q = parseInt(r.q,10) || (prev?prev.q:1); p.drive = parseInt(r.series,10) || (prev?prev.drive:1); p.n = ++n; p.t = t0 + i; DATA.plays[id]["h"+i] = p; prev = p; });
+    made.push(label + " (" + rows.length + ")"); return id;
+  };
+  let first = null;
+  if ($("#hudlO").checked) first = add(HUDL.O, "game", "our game vs " + opp) || first;
+  if ($("#hudlD").checked) first = add(HUDL.D, "offense", opp + "'s offense") || first;
+  if (!made.length){ $("#hudlMsg").textContent = "Pick at least one side to import."; return; }
+  saveData(); HUDL = null; $("#hudlPrev").innerHTML = ""; $("#hudlMsg").textContent = "Imported " + made.join(" and ") + ". Pick it from the game list to see the tendencies.";
+  selectGame(first);
+}
+
 /* ---------- opponent profile -> Call Sheet Drill ---------- */
 const teamKey = n => String(n||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 function emptyB(){ return {c0:0,c1:0,c2:0,c3:0,c4:0,n:0,press:0,pn:0}; }
@@ -954,7 +1080,7 @@ function buildProfile(opp){
   const key = teamKey(opp), prof = {name:opp, key, games:0, snaps:0, all:emptyB(), sit:{}, fam:{}};
   const weak = {};
   for (const [id,g] of Object.entries(DATA.games)){
-    if (teamKey(g.opp)!==key) continue;
+    if (teamKey(g.opp)!==key || isOffense(g)) continue;
     const ps = Object.values(DATA.plays[id]||{});
     if (!ps.length) continue;
     prof.games++;
@@ -1203,6 +1329,17 @@ $("#rereadGame").onclick = async () => {
 $("#aiCard").hidden = !READER_URL; $("#aiOn").checked = aiOn(); $("#aiOn").disabled = !READER_URL;
 $("#aiMsg").textContent = READER_URL ? (aiOn() ? "On. Each drive is read a few seconds after you log it." : "Off. The built-in reader is used.") : "Not set up yet.";
 $("#aiOn").onchange = e => { ls.set("bl-ai", e.target.checked); $("#aiMsg").textContent = e.target.checked ? "On. Each drive is read a few seconds after you log it." : "Off. The built-in reader is used."; };
+$("#hudlFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  $("#hudlMsg").textContent = "Reading " + f.name + "…";
+  try {
+    const X = await loadXLSX();
+    const wb = X.read(await f.arrayBuffer(), {type:"array"});
+    const table = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:""});
+    hudlPreview(f.name, table);
+  } catch (err) { $("#hudlMsg").textContent = String(err.message||err).includes("spreadsheet reader") ? err.message : "Couldn't read that file. Export it from Hudl again as Excel or CSV."; }
+};
+$("#hudlPrev").addEventListener("click", e => { if (e.target.id==="hudlGo") hudlImport(); if (e.target.id==="hudlCancel"){ HUDL = null; $("#hudlPrev").innerHTML = ""; } });
 $("#delGame").onclick = () => { if (gid) $("#delGameYes").hidden = false; };
 $("#delGameYes").onclick = () => { if (!gid) return; delete DATA.games[gid]; delete DATA.plays[gid]; saveData(); const l = Object.keys(DATA.games)[0]; selectGame(l||null); setView("log"); };
 
