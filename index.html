@@ -2389,6 +2389,8 @@ function planEditHtml(){
   +'<label class="gplab">Run % (optional)<input class="gpin" type="number" inputmode="numeric" min="0" max="100" data-gp="runpct" value="'+(PLAN.runPct!=null?PLAN.runPct:'')+'" placeholder="'+(APPROACH[PLAN.approach]||APPROACH.balanced).pct+'"></label></div>'
   +'<p class="gpmut" style="margin:8px 0 0">'+esc((APPROACH[PLAN.approach]||APPROACH.balanced).sub)+'. Reps offer about '+runPct()+'% runs, and when there\'s no check the plan\'s call '+(runPct()>=60?'is the best run':runPct()<=40?'is the best pass':'is the best call either way')+'.</p>'
   +(profs.length?'':'<p class="gpmut" style="margin:8px 0 0">Chart them in <a href="logger/">Booth Log</a> and tap Send to drill, and they show up here.</p>')+'</div>';
+ h+='<div class="gpsec"><h3>Import from Hudl</h3><p class="gpmut" style="margin:0 0 8px">Upload a game\'s breakdown from Hudl (the playlist\'s ⋯ menu → Export Data, all fields). The opponent\'s defense becomes this week\'s opponent for the reps, and your plays can go on the call sheet.</p>'
+  +'<div class="gpacts" style="margin:0"><label class="btn" for="gpHudlFile">Pick the Hudl file</label><input type="file" id="gpHudlFile" accept=".xlsx,.xls,.csv,text/csv" class="vh"></div><p class="impmsg" id="gpHudlMsg" role="status"></p><div id="gpHudlPrev"></div></div>';
  h+='<div class="gpsec"><h3>Checks</h3><div class="gp2"><label class="gplab">Check run'+sel('run',PLAN.run,pn)+'</label><label class="gplab">Check blitz'+sel('blitz',PLAN.blitz,pn)+'</label></div>'
   +'<p class="gpmut" style="margin:10px 0 6px">What each look calls for, and a Hudl clip of it (optional):</p>'
   +COVS.map(k=>'<div class="gp3"><span>'+esc(LOOKS[k].label)+'</span>'+sel('rule',PLAN.looks[k],RULES,' data-k="'+k+'"')+'<input class="gpin" type="url" data-gp="lookfilm" data-k="'+k+'" value="'+esc(PLAN.lookFilm[k]||'')+'" placeholder="https://www.hudl.com/…"></div>').join('')+'</div>';
@@ -2441,6 +2443,8 @@ function b64d(t){t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t);const b
 function planClick(e){
  const t=e.target.closest('[data-gp]');if(!t||t.tagName==='INPUT'||t.tagName==='SELECT')return;const gp=t.dataset.gp,i=+t.dataset.i;
  if(gp==='start'){startPlanReps();return;}
+ if(gp==='hudlgo'){gpHudlUse();return;}
+ if(gp==='hudlcancel'){GPH=null;$('#gpHudlPrev').innerHTML='';return;}
  if(gp==='own'){PLAN=blankPlan();savePlan();renderPlan();return;}
  if(gp==='sitadd')PLAN.sits.push({sit:'4th-short',play:''});
  else if(gp==='sitdel')PLAN.sits.splice(i,1);
@@ -2457,6 +2461,88 @@ function planClick(e){
  else return;
  savePlan();renderPlan();
 }
+/* ---------- Hudl breakdown export -> opponent defense for the reps, our plays -> call sheet ---------- */
+let GPH=null;
+function loadXLSX(){
+ if(window.XLSX)return Promise.resolve(window.XLSX);
+ return new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';sc.onload=()=>res(window.XLSX);sc.onerror=()=>rej(new Error('Couldn\'t load the spreadsheet reader. Check your signal and try again.'));document.head.appendChild(sc);});
+}
+const GPCOLS={down:['DN','DOWN'],dist:['DIST','DISTANCE'],yard:['YARD LN','YARD LINE','YDLN'],odk:['ODK'],type:['PLAY TYPE'],form:['OFF FORM','FORMATION'],play:['OFF PLAY','PLAY CALL'],front:['DEF FRONT','FRONT'],cov:['COVERAGE','DEF COVERAGE'],blitz:['BLITZ'],team:['TEAM'],opp:['OPP TEAM','OPPONENT']};
+function gpRows(table){
+ const head=(table[0]||[]).map(h=>String(h||'').trim().toUpperCase()),col={};
+ for(const k in GPCOLS){const i=head.findIndex(h=>GPCOLS[k].includes(h));if(i>=0)col[k]=i;}
+ const rows=table.slice(1).map(r=>{const o={};for(const k in col){const v=r[col[k]];o[k]=v==null?'':String(v).trim();}return o;}).filter(r=>/^[od]/i.test(r.odk)&&(r.down||r.form||r.play)&&(col.type==null||/run|pass/i.test(r.type)||r.form||r.play));
+ return{col,rows};
+}
+function covOf(v){v=String(v||'').toLowerCase();if(!v)return null;
+ if(/\b0\b|zero/.test(v))return'c0';if(/quarter|qtrs|\b4\b|\b6\b|palms/.test(v))return'c4';if(/\b3\b|sky|cloud|buzz/.test(v))return'c3';if(/\b2\b|tampa/.test(v))return'c2';if(/\b1\b|man/.test(v))return'c1';return null;}
+function famOf(f){f=' '+String(f||'').toLowerCase()+' ';
+ if(/\b(trips|trey|trio|tre|3x1|triple)\b/.test(f))return'3x1';if(/\b(empty|quads)\b/.test(f))return'empty';if(/\b(bunch|stack)\b/.test(f))return'bunch';
+ if(/\b(wing t|wishbone|bone|full house|double wing)\b/.test(f))return'3-back';if(/\b(pro|i form|i formation|split|power i)\b/.test(f))return'2-back';
+ if(/\b(dbls|dbl|dubs|doubles|ace|deuce|spread|twins|2x2|slot)\b/.test(f))return'2x2';return null;}
+function gpProfile(name,rows,flip){
+ const B=()=>({c0:0,c1:0,c2:0,c3:0,c4:0,n:0,press:0,pn:0});
+ const prof={name,key:String(name).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(),games:1,snaps:0,all:B(),sit:{},fam:{},weak:[],hudl:true};
+ const add=(b,k,bl)=>{if(k){b[k]++;b.n++;}if(bl!=null){b.pn++;if(bl)b.press++;}};
+ for(const r of rows){
+  const k=covOf(r.cov),bl=r.blitz?!/^(n|no|none|0)$/i.test(r.blitz):(r.cov||r.front?false:null);
+  const dn=parseInt(r.down,10),ds=parseInt(r.dist,10);let y=parseInt(String(r.yard).replace(/[^0-9-]/g,''),10);
+  let ytg=null;if(Number.isFinite(y)){if(flip)y=-y;ytg=y<0?100+y:(y===0?50:y);}
+  add(prof.all,k,bl);
+  if(dn>=1&&dn<=4){const b=dn===1?'1st':dn===4?'4th':(dn===2?'2nd':'3rd')+'-'+(ds>=7?'long':ds>=4?'med':'short');add(prof.sit[b]||(prof.sit[b]=B()),k,bl);}
+  if(ytg!=null&&ytg<=20)add(prof.sit.redzone||(prof.sit.redzone=B()),k,bl);
+  if(ytg!=null&&ytg>=90)add(prof.sit.backed||(prof.sit.backed=B()),k,bl);
+  const fm=famOf(r.form);if(fm)add(prof.fam[fm]||(prof.fam[fm]=B()),k,bl);
+ }
+ prof.snaps=prof.all.n;return prof;
+}
+function gpHudlPreview(table){
+ const {col,rows}=gpRows(table),msg=$('#gpHudlMsg');msg.className='impmsg';
+ if(col.down==null&&col.form==null){msg.textContent='That file doesn\'t look like a Hudl breakdown export (no DN or OFF FORM column).';msg.className='impmsg err';$('#gpHudlPrev').innerHTML='';GPH=null;return;}
+ const O=rows.filter(r=>/^o/i.test(r.odk)),D=rows.filter(r=>/^d/i.test(r.odk));
+ const team=(rows.find(r=>r.team)||{}).team||'The team in this file',opp=((rows.find(r=>r.opp)||{}).opp||'Opponent').replace(/\s+high school$/i,'');
+ const tagged=l=>l.filter(r=>covOf(r.cov)).length;
+ const dDef=tagged(D),oDef=tagged(O);
+ GPH={O,D,team,opp};
+ const defSide=oDef>dDef?'O':'D';
+ const plays=l=>[...new Set(l.map(r=>r.play).filter(Boolean))];
+ msg.textContent='';
+ $('#gpHudlPrev').innerHTML='<div class="gpsec" style="background:var(--surface);margin:8px 0 0">'
+  +'<div class="glab" style="margin-bottom:4px">The defense to play against</div>'
+  +'<label class="gpchk" style="margin-bottom:6px"><input type="radio" name="gpDef" value="D"'+(defSide==='D'?' checked':'')+'> '+esc(team)+'\'s defense · '+D.length+' snaps, '+dDef+' with coverage</label>'
+  +'<label class="gpchk" style="margin-bottom:6px"><input type="radio" name="gpDef" value="O"'+(defSide==='O'?' checked':'')+'> '+esc(opp)+'\'s defense · '+O.length+' snaps, '+oDef+' with coverage</label>'
+  +'<label class="gplab" style="margin:6px 0">Call them<input class="gpin" type="text" id="gpHudlName" value="'+esc(defSide==='D'?team:opp)+'" maxlength="40"></label>'
+  +'<div class="glab" style="margin:10px 0 4px">Our plays for the call sheet</div>'
+  +'<select class="gpin" id="gpHudlOurs"><option value="">Don\'t add plays</option><option value="O">'+esc(team)+'\'s offense · '+plays(O).length+' plays</option><option value="D">'+esc(opp)+'\'s offense · '+plays(D).length+' plays</option></select>'
+  +(dDef+oDef?'':'<p class="gpmut" style="margin:8px 0 0">No coverage is tagged in this file, so the reps would keep normal defenses. Your plays can still go on the call sheet.</p>')
+  +'<div class="gpacts" style="margin:10px 0 0"><button class="btn primary" data-gp="hudlgo">Use this file</button><button class="btn" data-gp="hudlcancel">Cancel</button></div></div>';
+ $('#gpHudlPrev').querySelectorAll('input[name=gpDef]').forEach(r=>r.onchange=()=>{$('#gpHudlName').value=r.value==='D'?team:opp;});
+}
+function gpHudlUse(){
+ if(!GPH)return;const side=($('#gpHudlPrev input[name=gpDef]:checked')||{}).value||'D';
+ const name=$('#gpHudlName').value.trim()||'Opponent',rows=side==='D'?GPH.D:GPH.O;
+ /* Hudl's yard line is from the file owner's side; when the owner is on defense, the offense is the other team, so flip it */
+ const prof=gpProfile(name,rows,side==='D');
+ const done=[],msg=$('#gpHudlMsg');
+ if(prof.snaps){
+  const st=load('csd-opp',null)||{v:1,profiles:{},active:null},had=st.profiles[prof.key];
+  if(had&&had.all){for(const b of ['all']){for(const k in prof.all)prof.all[k]+=had.all[k]||0;}for(const k in had.sit||{}){const p=prof.sit[k]||(prof.sit[k]={c0:0,c1:0,c2:0,c3:0,c4:0,n:0,press:0,pn:0});for(const x in p)p[x]+=had.sit[k][x]||0;}for(const k in had.fam||{}){const p=prof.fam[k]||(prof.fam[k]={c0:0,c1:0,c2:0,c3:0,c4:0,n:0,press:0,pn:0});for(const x in p)p[x]+=had.fam[k][x]||0;}prof.games+=had.games||0;prof.snaps=prof.all.n;prof.weak=had.weak||[];}
+  prof.updated=Date.now();st.profiles[prof.key]=prof;st.active=prof.key;save('csd-opp',st);OPP=oppProfile();PLAN.opp=prof;savePlan();
+  done.push(name+' is this week\'s opponent ('+prof.snaps+' snaps with coverage)');
+ }
+ const ours=$('#gpHudlOurs').value,have=new Set(T.book.map(b=>String(b[0]).toLowerCase()));
+ const list=ours?[...new Set((ours==='O'?GPH.O:GPH.D).map(r=>r.play).filter(Boolean))].filter(n=>!have.has(n.toLowerCase())).slice(0,40):[];
+ GPH=null;
+ if(!done.length&&!list.length){msg.textContent=ours?'Those plays are already on your call sheet, and no coverage was tagged, so nothing changed.':'No coverage was tagged, so nothing changed. Pick our offense to add plays.';msg.className='impmsg err';$('#gpHudlPrev').innerHTML='';return;}
+ if(list.length){
+  /* hand the play names to the call sheet importer so the coach checks concept and formation before adding */
+  $('#planSheet').hidden=true;openTeam();$('#impText').value=list.join('\n');readImport($('#impText').value);
+  const m=$('#impMsg');m.textContent=(done.length?done[0]+'. ':'')+list.length+' plays from Hudl. Check each concept and formation, then add them.';
+  try{$('#impText').scrollIntoView({block:'start'});}catch(e){}
+  return;
+ }
+ msg.textContent=done.join('. ')+'.';renderPlan();
+}
 (function importPlanLink(){
  const m=location.hash.match(/^#gp=([A-Za-z0-9_-]+)/);if(!m)return;
  try{const p=JSON.parse(b64d(m[1]));if(p&&p.v===1){PLAN=cleanPlan({...p,fromLink:true});save('csd-plan',PLAN);try{localStorage.setItem('csd-beta-plan','1');}catch(e){}PLAN_LOADED=true;}}catch(e){}
@@ -2471,6 +2557,10 @@ document.querySelectorAll('#planSheet .gptabs button').forEach(b=>b.onclick=()=>
 $('#planBody').addEventListener('change',planChange);
 $('#planBody').addEventListener('input',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox')planChange(e);});
 $('#planBody').addEventListener('click',planClick);
+$('#planBody').addEventListener('change',async e=>{if(e.target.id!=='gpHudlFile')return;const f=e.target.files[0];e.target.value='';if(!f)return;
+ const msg=$('#gpHudlMsg');msg.className='impmsg';msg.textContent='Reading '+f.name+'…';
+ try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array'});gpHudlPreview(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''}));}
+ catch(err){msg.textContent=/spreadsheet reader/.test(String(err.message))?err.message:'Couldn\'t read that file. Export it from Hudl again as Excel or CSV.';msg.className='impmsg err';}});
 
 /* keep the field tucked under the pinned scoreboard */
 function syncBand(){const b=$('#scoreband');if(b)document.documentElement.style.setProperty('--bandH',b.offsetHeight+'px');}
