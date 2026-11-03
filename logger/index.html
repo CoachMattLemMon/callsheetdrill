@@ -705,7 +705,7 @@ async function aiRead(text, prev, scout){
     const r = await fetch(READER_URL, {method:"POST", headers:{"Content-Type":"application/json"}, signal:ctl.signal,
       body: JSON.stringify({text, terms, scout: !!scout, device: DEVICE, prev: prev ? {down:prev.down, dist:prev.dist, side:prev.side, yd:prev.yd} : null})});
     const j = await r.json().catch(()=>({}));
-    if (!r.ok || !Array.isArray(j.plays)) { const e = new Error(j.error || "The AI reader didn't answer."); e.retry = r.status>=500 || r.status===0; throw e; }
+    if (!r.ok || !Array.isArray(j.plays)) { const e = new Error(j.error || "The AI reader didn't answer."); e.retry = r.status===503 || r.status===504 || r.status===0; throw e; }
     return j.plays;
   } catch (e) { if (e.name==="AbortError"){ const t = new Error("The AI reader took too long."); t.retry = true; throw t; } throw e; }
   finally { clearTimeout(tm); }
@@ -723,7 +723,7 @@ async function aiReadSafe(text, prev, scout){
   try { return await aiRead(text, prev, scout); }
   catch (e){ if (!e.retry) throw e; await new Promise(r=>setTimeout(r, 2500)); return await aiRead(text, prev, scout); }
 }
-let aiLastError = "";
+let aiLastError = "", aiPartial = 0;
 /* replace one drive's built-in reading with the AI reading, keeping plays fixed by hand */
 async function aiDrive(g, drive, text){
   if (!aiOn() || !navigator.onLine) return false;
@@ -732,16 +732,33 @@ async function aiDrive(g, drive, text){
   if (!mine.length || mine.some(p=>p.fixed)) return false;
   const before = all.filter(p=>p.t < mine[0].t), prev = before[before.length-1] || null;
   let out = [];
+  const scout = isScout(DATA.games[g]), d = dictNow();
+  const half = t => { const mid = Math.floor(t.length/2); let cut = t.lastIndexOf(". ", mid + 200); if (cut < mid - 400) cut = t.indexOf(" ", mid); if (cut < 1) cut = mid; return [t.slice(0, cut+1), t.slice(cut+1)].filter(x=>x.trim().length > 2); };
+  const local = t => autoSplit(t, d).map(raw => ({__local:true, raw}));
+  /* a piece the reader can't make sense of is split in half and tried again; a half that still fails keeps the built-in reading */
+  async function readPiece(t, pv, depth){
+    try { return await aiReadSafe(t, pv, scout); }
+    catch (e){
+      if (!/make sense/i.test(String(e.message||""))) throw e;
+      aiLastError = String(e.message||e);
+      if (depth >= 2 || t.length < 300){ aiPartial++; return local(t); }
+      let res = [];
+      for (const h of half(t)){ const r = await readPiece(h, pv, depth+1); res = res.concat(r); const lastAi = r.filter(x=>!x.__local).pop(); if (lastAi) pv = lastAi; }
+      return res;
+    }
+  }
   try {
     let pv = prev;
-    for (const c of chunks(text)){ const part = await aiReadSafe(c, pv, isScout(DATA.games[g])); out = out.concat(part); if (part.length) pv = part[part.length-1]; }
+    for (const c of chunks(text)){ const part = await readPiece(c, pv, 0); out = out.concat(part); const lastAi = part.filter(x=>!x.__local).pop(); if (lastAi) pv = lastAi; }
   }
   catch (e) { aiLastError = String(e.message||e); note(aiLastError + " The built-in reading stays."); return false; }
+  if (!out.some(o=>!o.__local)) return false;
   if (!out.length) return false;
   const t0 = mine[0].t, q = mine[0].q, n0 = mine[0].n;
   for (const p of mine) delete DATA.plays[g][p.id];
   let pv = prev;
-  out.forEach((o,i) => { const p = aiPlay(o, {raw:"", q, drive, n:n0+i, t:t0+i/100}, pv); DATA.plays[g]["a"+t0.toString(36)+"x"+drive+"x"+i] = p; pv = p; });
+  out.forEach((o,i) => { const base = {raw:"", q, drive, n:n0+i, t:t0+i/100};
+    const p = o.__local ? finish({...parseCall(o.raw, dictNow(), pv), ...base, raw:o.raw}, pv) : aiPlay(o, base, pv); DATA.plays[g]["a"+t0.toString(36)+"x"+drive+"x"+i] = p; pv = p; });
   renumber(g); saveData(); return true;
 }
 function renumber(g){ Object.values(DATA.plays[g]||{}).sort((a,b)=>a.t-b.t).forEach((p,i)=>p.n=i+1); }
@@ -1146,7 +1163,7 @@ $("#rereadGame").onclick = async () => {
   if (!gid || game()?.example) { $("#rereadMsg").textContent = "Pick one of your own games first."; return; }
   if (aiOn() && navigator.onLine){
     const g = gid, ps = plays().sort((a,b)=>a.t-b.t), drives = [...new Set(ps.map(p=>p.drive))];
-    const btn = $("#rereadGame"); btn.disabled = true; let ok = 0, skipped = 0;
+    const btn = $("#rereadGame"); btn.disabled = true; let ok = 0, skipped = 0; aiPartial = 0;
     for (let i=0;i<drives.length;i++){
       $("#rereadMsg").textContent = "Reading drive " + (i+1) + " of " + drives.length + "…";
       const dp = ps.filter(p=>p.drive===drives[i]);
@@ -1156,7 +1173,7 @@ $("#rereadGame").onclick = async () => {
     }
     btn.disabled = false; render();
     const failed = drives.length - ok - skipped;
-    $("#rereadMsg").textContent = "AI reader re-read " + ok + " of " + drives.length + " drives" + (skipped ? "; " + skipped + " with hand fixes were left alone" : "") + (failed ? "; " + failed + " didn't come back (" + aiLastError + ") — tap Re-read again for those" : "") + ".";
+    $("#rereadMsg").textContent = "AI reader re-read " + ok + " of " + drives.length + " drives" + (skipped ? "; " + skipped + " with hand fixes were left alone" : "") + (failed ? "; " + failed + " didn't come back (" + aiLastError + ") — tap Re-read again for those" : "") + (aiPartial ? "; " + aiPartial + " short stretch" + (aiPartial===1?"":"es") + " of talk kept the built-in reading" : "") + ".";
     return;
   }
   const d = dictNow(), ps = plays().sort((a,b)=>a.t-b.t);
