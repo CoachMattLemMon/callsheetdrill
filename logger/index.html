@@ -672,6 +672,7 @@ function covKey(c){
 
 /* ---------- state ---------- */
 seedExample();
+if (!ls.get("bl-tidy1", false)){ try { for (const ps of Object.values(DATA.plays)) for (const p of Object.values(ps)) if (p.ai) tidy(p); saveData(); ls.set("bl-tidy1", true); } catch {} }
 /* ---------- AI reader (optional; the built-in reader is always the fallback) ---------- */
 const READER_URL = "https://booth-log-reader.coachmattlemmon.workers.dev/";   // the Cloudflare Worker address, e.g. https://booth-log-reader.<name>.workers.dev
 const aiOn = () => !!READER_URL && ls.get("bl-ai", true) !== false;
@@ -685,17 +686,31 @@ function aiPlay(o, base, prev){
   p.side = o.side==="-"||o.side==="+" ? o.side : null;
   p.hash = ["L","M","R"].includes(o.hash) ? o.hash : null;
   for (const k of ["personnel","formation","play","front","coverage","rotation","blitzer","defender"]) p[k] = str(o[k], 60);
-  p.weakness = str(o.weakness || o.note, 160);
+  p.weakness = str(o.weakness || o.note, 320);
   p.playType = PTYPES.some(([v])=>v===o.playType) ? o.playType : null;
   p.tags = Array.isArray(o.tags) && o.tags.length ? [...new Set(o.tags.map(x=>String(x).slice(0,30)))].join(", ") : (typeof o.tags==="string" && o.tags ? o.tags.slice(0,120) : null);
   p.outcome = ["td","int","fumble","sack","incomplete","penalty","first-down"].includes(o.outcome) ? o.outcome : null;
   p.blitz = o.blitz===true ? true : null;
   p.box = str(o.box, 20);
   if (p.box){ const bm = p.box.match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(p.box,10)||null); }
-  if (p.formation){ const d = dictNow(), b = p.formation.toLowerCase().replace(/\s+(right|left|rt|lt)$/,""); p.family = d.forms[b] || null; }
   p.raw = str(o.raw, 2000) || base.raw;
   p.ai = true;
-  return finish(p, prev);
+  return finish(tidy(p), prev);
+}
+/* the coach's own sheet decides names, families and play types; one spelling per tag */
+function tidy(p){
+  const d = dictNow();
+  const title = x => String(x).replace(/\s+/g," ").trim().replace(/(^|\s)([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+  if (p.play){ p.play = title(p.play); const t = d.plays[p.play.toLowerCase()]; if (t) p.playType = t; }
+  if (p.formation){
+    p.formation = title(p.formation);
+    const words = p.formation.toLowerCase().replace(/\s+(right|left|rt|lt)$/,"");
+    // "Pistol Bronze": the coach's name that comes last in the call is the formation ("pistol" is the backfield)
+    const own = (d.ownForms||[]).map(f=>{ const m = words.match(new RegExp("(^|\\s)"+namePat(f)+"(?=\\s|$)")); return m ? {f, at: m.index + m[1].length, len: f.length} : null; }).filter(Boolean).sort((a,b)=>(b.at+b.len)-(a.at+a.len) || b.len-a.len).map(x=>x.f)[0];
+    p.family = (own && d.forms[own]) || d.forms[words] || p.family || null;
+  }
+  if (p.tags){ const seen = new Set(), out = []; for (const t of String(p.tags).split(/\s*,\s*/)){ const k = t.toLowerCase(); if (!t || seen.has(k) || (p.play && k===p.play.toLowerCase())) continue; seen.add(k); out.push(title(t)); } p.tags = out.length ? out.join(", ") : null; }
+  return p;
 }
 async function aiRead(text, prev, scout){
   const d = dictNow();
