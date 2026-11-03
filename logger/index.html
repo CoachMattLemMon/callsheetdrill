@@ -700,15 +700,30 @@ function aiPlay(o, base, prev){
 async function aiRead(text, prev, scout){
   const d = dictNow();
   const terms = {forms: Object.fromEntries(Object.keys(MYTERMS.forms).map(k=>[k,1])), plays: {...drillTerms().plays, ...MYTERMS.plays}, tags: MYTERMS.tags||[], alias: MYTERMS.alias||{}};
-  const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 45000);
+  const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 90000);
   try {
     const r = await fetch(READER_URL, {method:"POST", headers:{"Content-Type":"application/json"}, signal:ctl.signal,
       body: JSON.stringify({text, terms, scout: !!scout, device: DEVICE, prev: prev ? {down:prev.down, dist:prev.dist, side:prev.side, yd:prev.yd} : null})});
     const j = await r.json().catch(()=>({}));
-    if (!r.ok || !Array.isArray(j.plays)) throw new Error(j.error || "The AI reader didn't answer.");
+    if (!r.ok || !Array.isArray(j.plays)) { const e = new Error(j.error || "The AI reader didn't answer."); e.retry = r.status>=500 || r.status===0; throw e; }
     return j.plays;
-  } finally { clearTimeout(tm); }
+  } catch (e) { if (e.name==="AbortError"){ const t = new Error("The AI reader took too long."); t.retry = true; throw t; } throw e; }
+  finally { clearTimeout(tm); }
 }
+/* long drives go in pieces of about 1,800 characters, cut at a break between entries or sentences */
+function chunks(parts){
+  const out = []; let cur = "";
+  const pieces = [];
+  for (const t of (Array.isArray(parts) ? parts : [parts])){ if (t.length <= 1800){ pieces.push(t); continue; } let r = t; while (r.length > 1800){ let cut = r.lastIndexOf(". ", 1800); if (cut < 900) cut = r.lastIndexOf(" ", 1800); if (cut < 1) cut = 1800; pieces.push(r.slice(0, cut+1)); r = r.slice(cut+1); } if (r.trim()) pieces.push(r); }
+  for (const t of pieces){ if (cur && (cur.length + t.length) > 1800){ out.push(cur); cur = ""; } cur += (cur ? " " : "") + t; }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+async function aiReadSafe(text, prev, scout){
+  try { return await aiRead(text, prev, scout); }
+  catch (e){ if (!e.retry) throw e; await new Promise(r=>setTimeout(r, 2500)); return await aiRead(text, prev, scout); }
+}
+let aiLastError = "";
 /* replace one drive's built-in reading with the AI reading, keeping plays fixed by hand */
 async function aiDrive(g, drive, text){
   if (!aiOn() || !navigator.onLine) return false;
@@ -716,9 +731,12 @@ async function aiDrive(g, drive, text){
   const mine = all.filter(p=>p.drive===drive);
   if (!mine.length || mine.some(p=>p.fixed)) return false;
   const before = all.filter(p=>p.t < mine[0].t), prev = before[before.length-1] || null;
-  let out;
-  try { out = await aiRead(text, prev, isScout(DATA.games[g])); }
-  catch (e) { note(String(e.message||e) + " The built-in reading stays."); return false; }
+  let out = [];
+  try {
+    let pv = prev;
+    for (const c of chunks(text)){ const part = await aiReadSafe(c, pv, isScout(DATA.games[g])); out = out.concat(part); if (part.length) pv = part[part.length-1]; }
+  }
+  catch (e) { aiLastError = String(e.message||e); note(aiLastError + " The built-in reading stays."); return false; }
   if (!out.length) return false;
   const t0 = mine[0].t, q = mine[0].q, n0 = mine[0].n;
   for (const p of mine) delete DATA.plays[g][p.id];
@@ -759,7 +777,7 @@ function logDrive(){
   justAdded = first; saveData(); render();
   if (aiOn() && navigator.onLine){
     const g = gid; note("Reading the drive…");
-    aiDrive(g, drive, segs.join(" ")).then(ok => { if (ok){ if (gid===g) render(); note("Drive read by the AI reader. Tap Fix on anything it got wrong."); } });
+    aiDrive(g, drive, segs).then(ok => { if (ok){ if (gid===g) render(); note("Drive read by the AI reader. Tap Fix on anything it got wrong."); } });
   }
   if (unheard && !(aiOn() && navigator.onLine)) note(unheard===1 ? "1 play has no formation it recognized. Tap Fix on it, or add the name under My terms." : unheard+" plays have no formation it recognized. Tap Fix on them, or add the names under My terms.");
 }
@@ -1123,6 +1141,7 @@ $("#importFile").onchange = async e => {
   } catch { $("#backupMsg").textContent = "That file isn't a Booth Log backup. Pick the file that starts with booth-log-backup."; }
   e.target.value = "";
 };
+let rereadAll = false;
 $("#rereadGame").onclick = async () => {
   if (!gid || game()?.example) { $("#rereadMsg").textContent = "Pick one of your own games first."; return; }
   if (aiOn() && navigator.onLine){
@@ -1132,10 +1151,12 @@ $("#rereadGame").onclick = async () => {
       $("#rereadMsg").textContent = "Reading drive " + (i+1) + " of " + drives.length + "…";
       const dp = ps.filter(p=>p.drive===drives[i]);
       if (dp.some(p=>p.fixed)){ skipped++; continue; }
-      if (await aiDrive(g, drives[i], dp.map(p=>p.raw||"").join(" "))) ok++;
+      if (dp.every(p=>p.ai) && !rereadAll){ ok++; continue; }
+      if (await aiDrive(g, drives[i], dp.map(p=>p.raw||""))) ok++;
     }
     btn.disabled = false; render();
-    $("#rereadMsg").textContent = "AI reader re-read " + ok + " of " + drives.length + " drives" + (skipped ? "; " + skipped + " with hand fixes were left alone." : ".");
+    const failed = drives.length - ok - skipped;
+    $("#rereadMsg").textContent = "AI reader re-read " + ok + " of " + drives.length + " drives" + (skipped ? "; " + skipped + " with hand fixes were left alone" : "") + (failed ? "; " + failed + " didn't come back (" + aiLastError + ") — tap Re-read again for those" : "") + ".";
     return;
   }
   const d = dictNow(), ps = plays().sort((a,b)=>a.t-b.t);
