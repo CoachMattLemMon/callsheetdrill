@@ -673,7 +673,7 @@ function covKey(c){
 /* ---------- state ---------- */
 seedExample();
 /* ---------- AI reader (optional; the built-in reader is always the fallback) ---------- */
-const READER_URL = "";   // the Cloudflare Worker address, e.g. https://booth-log-reader.<name>.workers.dev
+const READER_URL = "https://booth-log-reader.coachmattlemmon.workers.dev/";   // the Cloudflare Worker address, e.g. https://booth-log-reader.<name>.workers.dev
 const aiOn = () => !!READER_URL && ls.get("bl-ai", true) !== false;
 const DEVICE = (() => { let d = ls.get("bl-device", null); if (!d){ d = Math.random().toString(36).slice(2, 12); ls.set("bl-device", d); } return d; })();
 function aiPlay(o, base, prev){
