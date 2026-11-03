@@ -210,9 +210,15 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
       </div>
       <div class="hint" id="backupMsg" role="status"></div>
     </section>
+    <section class="card" id="aiCard">
+      <h2>AI reader</h2>
+      <p class="sub">Reads each drive's booth talk the way a coach would: splits the snaps, keeps the calls, box, results and reads, and skips the chatter. Needs signal. Without it, the built-in reader does the job.</p>
+      <label class="row" style="gap:10px;font-weight:700"><input type="checkbox" id="aiOn"> Use the AI reader</label>
+      <div class="hint" id="aiMsg" role="status"></div>
+    </section>
     <section class="card">
       <h2>Re-read this game</h2>
-      <p class="sub">Reads every play in this game again with your current terms and heard-as fixes. Plays you fixed by hand stay as you left them.</p>
+      <p class="sub">Reads every play in this game again with your current terms and heard-as fixes. Uses the AI reader when it's on. Plays you fixed by hand stay as you left them.</p>
       <div class="row"><button class="btn" id="rereadGame" type="button">Re-read this game</button><span class="hint" id="rereadMsg" role="status"></span></div>
     </section>
     <section class="card">
@@ -666,6 +672,61 @@ function covKey(c){
 
 /* ---------- state ---------- */
 seedExample();
+/* ---------- AI reader (optional; the built-in reader is always the fallback) ---------- */
+const READER_URL = "";   // the Cloudflare Worker address, e.g. https://booth-log-reader.<name>.workers.dev
+const aiOn = () => !!READER_URL && ls.get("bl-ai", true) !== false;
+const DEVICE = (() => { let d = ls.get("bl-device", null); if (!d){ d = Math.random().toString(36).slice(2, 12); ls.set("bl-device", d); } return d; })();
+function aiPlay(o, base, prev){
+  const num = v => { const n = Number(v); return v==null || v==="" || !Number.isFinite(n) ? null : n; };
+  const str = (v, n) => v==null || v==="" ? null : String(v).slice(0, n||80);
+  const p = {...blank(), ...base};
+  for (const k of ["down","dist","yd","pressure","gain"]) p[k] = num(o[k]);
+  if (p.down!=null && (p.down<1 || p.down>4)) p.down = null;
+  p.side = o.side==="-"||o.side==="+" ? o.side : null;
+  p.hash = ["L","M","R"].includes(o.hash) ? o.hash : null;
+  for (const k of ["personnel","formation","play","front","coverage","rotation","blitzer","defender"]) p[k] = str(o[k], 60);
+  p.weakness = str(o.weakness || o.note, 160);
+  p.playType = PTYPES.some(([v])=>v===o.playType) ? o.playType : null;
+  p.tags = Array.isArray(o.tags) && o.tags.length ? [...new Set(o.tags.map(x=>String(x).slice(0,30)))].join(", ") : (typeof o.tags==="string" && o.tags ? o.tags.slice(0,120) : null);
+  p.outcome = ["td","int","fumble","sack","incomplete","penalty","first-down"].includes(o.outcome) ? o.outcome : null;
+  p.blitz = o.blitz===true ? true : null;
+  p.box = str(o.box, 20);
+  if (p.box){ const bm = p.box.match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(p.box,10)||null); }
+  if (p.formation){ const d = dictNow(), b = p.formation.toLowerCase().replace(/\s+(right|left|rt|lt)$/,""); p.family = d.forms[b] || null; }
+  p.raw = str(o.raw, 2000) || base.raw;
+  p.ai = true;
+  return finish(p, prev);
+}
+async function aiRead(text, prev, scout){
+  const d = dictNow();
+  const terms = {forms: Object.fromEntries(Object.keys(MYTERMS.forms).map(k=>[k,1])), plays: {...drillTerms().plays, ...MYTERMS.plays}, tags: MYTERMS.tags||[], alias: MYTERMS.alias||{}};
+  const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 45000);
+  try {
+    const r = await fetch(READER_URL, {method:"POST", headers:{"Content-Type":"application/json"}, signal:ctl.signal,
+      body: JSON.stringify({text, terms, scout: !!scout, device: DEVICE, prev: prev ? {down:prev.down, dist:prev.dist, side:prev.side, yd:prev.yd} : null})});
+    const j = await r.json().catch(()=>({}));
+    if (!r.ok || !Array.isArray(j.plays)) throw new Error(j.error || "The AI reader didn't answer.");
+    return j.plays;
+  } finally { clearTimeout(tm); }
+}
+/* replace one drive's built-in reading with the AI reading, keeping plays fixed by hand */
+async function aiDrive(g, drive, text){
+  if (!aiOn() || !navigator.onLine) return false;
+  const all = Object.entries(DATA.plays[g]||{}).map(([id,p])=>({id,...p})).sort((a,b)=>a.t-b.t);
+  const mine = all.filter(p=>p.drive===drive);
+  if (!mine.length || mine.some(p=>p.fixed)) return false;
+  const before = all.filter(p=>p.t < mine[0].t), prev = before[before.length-1] || null;
+  let out;
+  try { out = await aiRead(text, prev, isScout(DATA.games[g])); }
+  catch (e) { note(String(e.message||e) + " The built-in reading stays."); return false; }
+  if (!out.length) return false;
+  const t0 = mine[0].t, q = mine[0].q, n0 = mine[0].n;
+  for (const p of mine) delete DATA.plays[g][p.id];
+  let pv = prev;
+  out.forEach((o,i) => { const p = aiPlay(o, {raw:"", q, drive, n:n0+i, t:t0+i/100}, pv); DATA.plays[g]["a"+t0.toString(36)+"x"+drive+"x"+i] = p; pv = p; });
+  renumber(g); saveData(); return true;
+}
+function renumber(g){ Object.values(DATA.plays[g]||{}).sort((a,b)=>a.t-b.t).forEach((p,i)=>p.n=i+1); }
 let gid = ls.get("bl-gid", null), quarter = ls.get("bl-q", 1), filt = "all", view = "log", editing = null, justAdded = null, newType = "game";
 const plays = () => Object.entries(DATA.plays[gid]||{}).map(([id,p])=>({id,...p}));
 const game = () => DATA.games[gid];
@@ -696,7 +757,11 @@ function logDrive(){
     if (!p.formation) unheard++;
   });
   justAdded = first; saveData(); render();
-  if (unheard) note(unheard===1 ? "1 play has no formation it recognized. Tap Fix on it, or add the name under My terms." : unheard+" plays have no formation it recognized. Tap Fix on them, or add the names under My terms.");
+  if (aiOn() && navigator.onLine){
+    const g = gid; note("Reading the drive…");
+    aiDrive(g, drive, segs.join(" ")).then(ok => { if (ok){ if (gid===g) render(); note("Drive read by the AI reader. Tap Fix on anything it got wrong."); } });
+  }
+  if (unheard && !(aiOn() && navigator.onLine)) note(unheard===1 ? "1 play has no formation it recognized. Tap Fix on it, or add the name under My terms." : unheard+" plays have no formation it recognized. Tap Fix on them, or add the names under My terms.");
 }
 let cntT; function updateCount(){ clearTimeout(cntT); cntT = setTimeout(()=>{ const n = autoSplit($("#say").value, dictNow()).length; $("#countHint").textContent = n===1 ? "1 play in the box" : n+" plays in the box"; }, 250); }
 
@@ -725,7 +790,7 @@ function playCard(p){
     <div class="chips">${p.formation?chip("",[p.personnel,p.formation].filter(Boolean).join(" ")):`<span class="chip miss">no formation heard</span>`}${chip("",p.play)}${chip("",p.tags)}${chip("Box",p.box)}${chip("vs",p.coverage)}${chip("",p.front)}${chip("",press)}${chip("",p.blitzer?p.blitzer+" came":null)}${chip("",p.rotation)}</div>
     ${p.weakness||p.defender ? `<div class="chips">${chip(p.defender||"Note", p.weakness||"", "weak")}</div>`:""}
     <div class="raw">“${esc(p.raw)}”</div>
-    <div class="pf"><button class="linkbtn" data-act="edit" data-id="${p.id}" style="margin-left:auto">${editing===p.id?"Close":"Fix"}</button></div>`;
+    <div class="pf">${p.ai?'<span class="hint" style="font-size:12px">AI read</span>':''}<button class="linkbtn" data-act="edit" data-id="${p.id}" style="margin-left:auto">${editing===p.id?"Close":"Fix"}</button></div>`;
   if (editing===p.id) html += editForm(p);
   return html + `</article>`;
 }
@@ -1058,8 +1123,21 @@ $("#importFile").onchange = async e => {
   } catch { $("#backupMsg").textContent = "That file isn't a Booth Log backup. Pick the file that starts with booth-log-backup."; }
   e.target.value = "";
 };
-$("#rereadGame").onclick = () => {
+$("#rereadGame").onclick = async () => {
   if (!gid || game()?.example) { $("#rereadMsg").textContent = "Pick one of your own games first."; return; }
+  if (aiOn() && navigator.onLine){
+    const g = gid, ps = plays().sort((a,b)=>a.t-b.t), drives = [...new Set(ps.map(p=>p.drive))];
+    const btn = $("#rereadGame"); btn.disabled = true; let ok = 0, skipped = 0;
+    for (let i=0;i<drives.length;i++){
+      $("#rereadMsg").textContent = "Reading drive " + (i+1) + " of " + drives.length + "…";
+      const dp = ps.filter(p=>p.drive===drives[i]);
+      if (dp.some(p=>p.fixed)){ skipped++; continue; }
+      if (await aiDrive(g, drives[i], dp.map(p=>p.raw||"").join(" "))) ok++;
+    }
+    btn.disabled = false; render();
+    $("#rereadMsg").textContent = "AI reader re-read " + ok + " of " + drives.length + " drives" + (skipped ? "; " + skipped + " with hand fixes were left alone." : ".");
+    return;
+  }
   const d = dictNow(), ps = plays().sort((a,b)=>a.t-b.t);
   let prev = null, n = 0, kept = 0;
   for (const p of ps){
@@ -1069,6 +1147,9 @@ $("#rereadGame").onclick = () => {
   }
   saveData(); render(); $("#rereadMsg").textContent = "Re-read " + n + " plays" + (kept ? ", kept " + kept + " you fixed by hand." : ".");
 };
+$("#aiCard").hidden = !READER_URL; $("#aiOn").checked = aiOn(); $("#aiOn").disabled = !READER_URL;
+$("#aiMsg").textContent = READER_URL ? (aiOn() ? "On. Each drive is read a few seconds after you log it." : "Off. The built-in reader is used.") : "Not set up yet.";
+$("#aiOn").onchange = e => { ls.set("bl-ai", e.target.checked); $("#aiMsg").textContent = e.target.checked ? "On. Each drive is read a few seconds after you log it." : "Off. The built-in reader is used."; };
 $("#delGame").onclick = () => { if (gid) $("#delGameYes").hidden = false; };
 $("#delGameYes").onclick = () => { if (!gid) return; delete DATA.games[gid]; delete DATA.plays[gid]; saveData(); const l = Object.keys(DATA.games)[0]; selectGame(l||null); setView("log"); };
 
