@@ -211,6 +211,12 @@ td.num{font-family:var(--f-mono);white-space:nowrap}
       <div class="hint" id="backupMsg" role="status"></div>
     </section>
     <section class="card">
+      <h2>Export for Hudl</h2>
+      <p class="sub">Saves this game as a spreadsheet in Hudl's columns (DN, DIST, YARD LN, OFF FORM, OFF PLAY, RESULT, GN/LS…), plus BOX and NOTES, so booth charting and Hudl tags line up.</p>
+      <label for="teamName" style="max-width:320px">Our team name (Hudl's TEAM column)<input type="text" id="teamName" autocomplete="off" placeholder="e.g. Saint Mary's"></label>
+      <div class="row"><button class="btn" id="hudlExport" type="button">Export this game</button><span class="hint" id="hudlExpMsg" role="status"></span></div>
+    </section>
+    <section class="card">
       <h2>Import from Hudl</h2>
       <p class="sub">In Hudl, export a game's breakdown (the playlist's ⋯ menu → Export Data, all fields), then pick the file here. Each side comes in as its own game.</p>
       <div class="row"><label class="btn" for="hudlFile" style="display:inline-flex;align-items:center">Pick the Hudl file</label><input type="file" id="hudlFile" accept=".xlsx,.xls,.csv,text/csv" hidden></div>
@@ -306,7 +312,7 @@ function findName(s, dict, blocked){
   }
   return best;
 }
-function blank(){ return {box:null,boxN:null,down:null,dist:null,side:null,yd:null,hash:null,personnel:null,formation:null,family:null,play:null,playType:null,tags:null,front:null,coverage:null,rotation:null,pressure:null,blitz:null,blitzer:null,gain:null,outcome:null,defender:null,weakness:null}; }
+function blank(){ return {backfield:null,dir:null,str:null,box:null,boxN:null,down:null,dist:null,side:null,yd:null,hash:null,personnel:null,formation:null,family:null,play:null,playType:null,tags:null,front:null,coverage:null,rotation:null,pressure:null,blitz:null,blitzer:null,gain:null,outcome:null,defender:null,weakness:null}; }
 
 /* dict = {forms:{name:family}, plays:{name:type}, tags:[...]} ; prev = previous play (for "same ...") */
 function parseCall(text, dict, prev){
@@ -414,6 +420,12 @@ function parseCall(text, dict, prev){
   if (m) o.rotation = m[0].trim();
   else if (/\b2 high\b/.test(rest)) o.rotation = "2-high";
   else if (/\b(single|1) high\b/.test(rest)) o.rotation = "1-high";
+  // Hudl's backfield, offensive strength and play direction
+  m = s.match(/\b(pistol|shot ?gun|gun|under center|i[\s-]?form(?:ation)?|offset i|wing ?t)\b(?:\s+(right|left|rt|lt)\b)?/);
+  if (m){ const b = m[1].replace(/\s+/g," "); o.backfield = (/gun/.test(b) ? "Gun" : /pistol/.test(b) ? "Pistol" : /under/.test(b) ? "Under Center" : /offset/.test(b) ? "Offset I" : /wing/.test(b) ? "Wing T" : "I Form") + (m[2] ? (m[2][0]==="r" ? " Rt" : " Lt") : ""); }
+  if (o.formation){ const fd = o.formation.match(/\b(right|left)$/i); if (fd) o.str = fd[1][0].toUpperCase(); }
+  m = rest.match(/\b(?:run(?:s|ning)?|ran|went|goes|going|bounce[sd]?|cut(?:s)? ?back|cutback|hit(?:s)?|outside|sweep(?:s)?)\s+(?:it\s+)?(?:to\s+)?(?:the\s+)?(right|left)\b(?!\s*hash)/) || rest.match(/\b(right|left) side\b/);
+  if (m) o.dir = m[1][0].toUpperCase();
   // pressure
   m = rest.match(/\b([3-8])[\s-]*(?:man|men)\b(?:\s*(?:rush|pressure|front|box))?/) || rest.match(/\b(?:brought|rushed|sent|bringing|rushing|rush)\s+([3-8])\b/);
   if (m) o.pressure = +m[1];
@@ -489,7 +501,7 @@ function guessType(n){
 }
 function parseSheet(text){
   const out = [], seen = new Set();
-  let kind = null, headType = null;
+  let kind = null, headType = null, motionHead = false;
   const HEAD = /^\s*(formations?|forms?|sets?|personnel groupings?|plays?|run(?:ning)? game|runs?|pass(?:ing)? game|passes|pass(?:ing)? concepts?|concepts?|quick game|drop ?back|play ?action(?: game)?|rpos?(?: game)?|screens?(?: game)?|motions?|tags?|shifts?|[a-z]+ game)\s*(?:[:\-–—]|$)\s*/i;
   const typeOf = h => { h = h.toLowerCase();
     if (/^run/.test(h)) return "run"; if (/^screen/.test(h)) return "screen"; if (/^rpo/.test(h)) return "rpo";
@@ -503,7 +515,7 @@ function parseSheet(text){
     const h = line.match(HEAD);
     const ha = line.match(/^\s*(?:heard as|sounds like|dictation)\s*[:\-–—]\s*/i);
     if (ha){ line = line.slice(ha[0].length); }
-    else if (h){ kind = kindOf(h[1]); headType = kind==="play" ? typeOf(h[1]) : null; line = line.slice(h[0].length); }
+    else if (h){ kind = kindOf(h[1]); headType = kind==="play" ? typeOf(h[1]) : null; motionHead = /^(motion|shift)/i.test(h[1]); line = line.slice(h[0].length); }
     if (ha){
       for (const pr of line.split(/[,;|]/)){ const q = pr.split(/\s*(?:=|->|→)\s*/); if (q.length===2 && q[0].trim().length>1 && q[1].trim().length>1){ const nm = q[0].trim().toLowerCase(); if (!seen.has("alias:"+nm)){ seen.add("alias:"+nm); out.push({kind:"alias", name:nm, sub:q[1].trim().toLowerCase()}); } } }
       continue;
@@ -522,7 +534,7 @@ function parseSheet(text){
       if (seen.has(key)) continue; seen.add(key);
       let k = kind;
       if (!k){ const f = guessFamily(name), lk = key in BASE_FORMS; k = (lk || pfam || (f && !guessType(name))) ? "form" : /motion|jet|orbit|zip|zap|zoom|rocket|fly|shift/.test(key) && !BASE_PLAYS[key] ? "tag" : "play"; }
-      out.push({kind:k, name, sub: k==="form" ? (pfam || BASE_FORMS[key] || guessFamily(name)) : k==="play" ? (headType || guessType(name)) : null});
+      out.push({kind:k, name, sub: k==="form" ? (pfam || BASE_FORMS[key] || guessFamily(name)) : k==="play" ? (headType || guessType(name)) : (k==="tag" && (motionHead || /motion|jet|orbit|zip|zap|zoom|fly|mob|shift|yo ?yo|return/.test(key)) ? "motion" : null)});
     }
   }
   return out;
@@ -702,6 +714,7 @@ function aiPlay(o, base, prev){
   p.box = str(o.box, 20);
   if (p.box){ const bm = p.box.match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(p.box,10)||null); }
   p.raw = str(o.raw, 2000) || base.raw;
+  { const lp = parseCall(p.raw||"", dictNow(), null); p.backfield = str(o.backfield,30) || lp.backfield; p.dir = ["L","R"].includes(o.dir) ? o.dir : lp.dir; const fd = String(p.formation||"").match(/\b(right|left)$/i); p.str = fd ? fd[1][0].toUpperCase() : lp.str; }
   p.ai = true;
   return finish(tidy(p), prev);
 }
@@ -846,7 +859,7 @@ function playCard(p){
   let html = `<article class="play${p.id===justAdded?" new":""}" data-id="${p.id}">
     <div class="ph"><span class="pn">#${p.n} · Q${p.q}</span><span class="dd">${dd}${est}</span><span class="spot">${fmtSpot(p)}${p.hash?" · "+esc(p.hash)+" hash":""}</span>
     <span class="res ${s===true?"s":s===false?"f":"n"}">${fmtGain(p)}</span></div>
-    <div class="chips">${p.formation?chip("",[p.personnel,p.formation].filter(Boolean).join(" ")):`<span class="chip miss">no formation heard</span>`}${chip("",p.play)}${chip("",p.tags)}${chip("Box",p.box)}${chip("vs",p.coverage)}${chip("",p.front)}${chip("",press)}${chip("",p.blitzer?p.blitzer+" came":null)}${chip("",p.rotation)}</div>
+    <div class="chips">${p.formation?chip("",[p.personnel,p.formation].filter(Boolean).join(" ")):`<span class="chip miss">no formation heard</span>`}${chip("",p.play)}${chip("",p.backfield)}${chip("",p.tags)}${chip("Box",p.box)}${chip("vs",p.coverage)}${chip("",p.front)}${chip("",press)}${chip("",p.blitzer?p.blitzer+" came":null)}${chip("",p.rotation)}</div>
     ${p.weakness||p.defender ? `<div class="chips">${chip(p.defender||"Note", p.weakness||"", "weak")}</div>`:""}
     <div class="raw">“${esc(p.raw)}”</div>
     <div class="pf">${p.ai?'<span class="hint" style="font-size:12px">AI read</span>':''}<button class="linkbtn" data-act="edit" data-id="${p.id}" style="margin-left:auto">${editing===p.id?"Close":"Fix"}</button></div>`;
@@ -867,6 +880,7 @@ function editForm(p){
     ${f("box","Box (e.g. 4-2)")}${f("front","Front")}
     ${sel("q","Quarter",[["1","Q1"],["2","Q2"],["3","Q3"],["4","Q4"],["5","OT"]])}
     ${f("tags","Tags")}${f("hash","Hash (L/M/R)")}
+    ${f("backfield","Backfield")}${f("dir","Play direction (L/R)")}
     <div class="acts"><button class="btn primary" data-act="save" data-id="${p.id}">Save</button>
     <button class="btn" data-act="del" data-id="${p.id}">Delete play</button>
     <button class="btn danger" data-act="delyes" data-id="${p.id}" hidden>Yes, delete</button></div>
@@ -996,7 +1010,7 @@ function loadXLSX(){
 }
 const HCOLS = {down:["DN","DOWN"], dist:["DIST","DISTANCE"], yard:["YARD LN","YARD LINE","YDLN","FIELD POS"], hash:["HASH"], q:["QTR","QUARTER"], series:["SERIES","DRIVE"], num:["PLAY #","PLAY NUM","PLAY"], odk:["ODK"], type:["PLAY TYPE"], result:["RESULT"], gain:["GN/LS","GAIN","GAIN/LOSS","YDS"],
   form:["OFF FORM","FORMATION","OFF FORMATION"], str:["OFF STR","STRENGTH"], play:["OFF PLAY","PLAY CALL"], dir:["PLAY DIR"], pers:["PERSONNEL","PERS"], motion:["MOTION"], back:["BACKFIELD"], tag:["TAG"], set:["SET"], prot:["PROTECTION"],
-  front:["DEF FRONT","FRONT"], cov:["COVERAGE","DEF COVERAGE"], blitz:["BLITZ"], team:["TEAM"], opp:["OPP TEAM","OPPONENT"]};
+  front:["DEF FRONT","FRONT"], cov:["COVERAGE","DEF COVERAGE"], blitz:["BLITZ"], box:["BOX"], notes:["NOTES","NOTE"], pen:["PENALTY"], team:["TEAM"], opp:["OPP TEAM","OPPONENT"]};
 function hudlRows(table){
   const head = (table[0]||[]).map(h=>String(h||"").trim().toUpperCase());
   const col = {}; for (const k in HCOLS){ const i = head.findIndex(h=>HCOLS[k].includes(h)); if (i>=0) col[k] = i; }
@@ -1022,7 +1036,10 @@ function hudlPlay(r, d, prev){
   p.personnel = r.pers || null;
   p.dir = /^l/i.test(r.dir) ? "L" : /^r/i.test(r.dir) ? "R" : null;
   p.str = /^l/i.test(r.str) ? "L" : /^r/i.test(r.str) ? "R" : /^bal/i.test(r.str) ? "Bal" : null;
-  p.tags = [r.back, r.motion, r.tag, r.set, r.prot].filter(Boolean).map(title).join(", ") || null;
+  p.backfield = r.back ? title(r.back) : null;
+  p.tags = [r.motion, r.tag, r.set, r.prot].filter(Boolean).map(title).join(", ") || null;
+  if (r.box){ p.box = r.box; const bm = r.box.match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(r.box,10)||null); }
+  if (r.notes) p.weakness = r.notes;
   p.front = r.front ? title(r.front) : null; p.coverage = r.cov ? title(r.cov) : null;
   if (r.blitz && !/^(n|no|none|0)$/i.test(r.blitz)){ p.blitz = true; p.blitzer = /^(y|yes)$/i.test(r.blitz) ? null : title(r.blitz); p.pressure = 5; }
   const dd = p.down!=null ? ["","1st","2nd","3rd","4th"][p.down]+" & "+(p.dist??"?") : "";
@@ -1136,7 +1153,7 @@ function addTerm(kind, name, sub){
   if (kind==="form") MYTERMS.forms[name] = sub||null;
   else if (kind==="play") MYTERMS.plays[name] = sub||null;
   else if (kind==="alias"){ const to = String(sub||"").toLowerCase().trim(); if (to.length<2) return false; (MYTERMS.alias ||= {})[name] = to; }
-  else { MYTERMS.tags ||= []; if (!MYTERMS.tags.includes(name)) MYTERMS.tags.push(name); }
+  else { MYTERMS.tags ||= []; if (!MYTERMS.tags.includes(name)) MYTERMS.tags.push(name); if (sub==="motion"){ MYTERMS.motions ||= []; if (!MYTERMS.motions.includes(name)) MYTERMS.motions.push(name); } }
   saveTerms(); return true;
 }
 
@@ -1217,7 +1234,7 @@ $("#feed").onclick = e => {
       const k = inp.dataset.k; let v = inp.value.trim();
       if (["down","dist","yd","pressure","gain","q"].includes(k)) v = v==="" ? null : Number(v);
       else if (v==="") v = null;
-      if (k==="hash" && v) v = v[0].toUpperCase();
+      if ((k==="hash" || k==="dir") && v) v = v[0].toUpperCase();
       p[k] = v;
     }
     if (p.box){ const bm = String(p.box).match(/^\s*([3-7])\s*-\s*([0-4])\s*$/); p.box = bm ? bm[1]+"-"+bm[2] : p.box; p.boxN = bm ? (+bm[1])+(+bm[2]) : (parseInt(p.box,10)||p.boxN||null); } else p.boxN = null;
@@ -1281,6 +1298,39 @@ $("#termList").onclick = e => {
   if (k==="form") delete MYTERMS.forms[n]; else if (k==="play") delete MYTERMS.plays[n]; else MYTERMS.tags = (MYTERMS.tags||[]).filter(x=>x!==n);
   saveTerms(); renderTerms();
 };
+/* ---------- the same play in Hudl's columns ---------- */
+const HUDL_HEAD = ["PLAY #","ODK","QTR","SERIES","DN","DIST","HASH","YARD LN","PLAY TYPE","RESULT","GN/LS","EFF","OFF STR","OFF FORM","OFF PLAY","PLAY DIR","BACKFIELD","PERSONNEL","MOTION","TAG","DEF FRONT","COVERAGE","BLITZ","PENALTY","TEAM","OPP TEAM","BOX","NOTES"];
+function hudlCols(p, g){
+  // plays logged before these fields existed get them from the formation name and the talk
+  if (!p.str || !p.backfield || !p.dir){ const lp = parseCall(p.raw||"", dictNow(), null), fd = String(p.formation||"").match(/\b(right|left)$/i); p = {...p, str: p.str || (fd ? fd[1][0].toUpperCase() : lp.str), backfield: p.backfield || lp.backfield, dir: p.dir || lp.dir}; }
+  if (!p.playType && p.play){ const t = dictNow().plays[p.play.toLowerCase()]; if (t) p = {...p, playType: t}; }
+  const run = p.playType==="run" || p.playType==="qb-run" || p.playType==="rpo";
+  const pass = ["pass","play-action","screen"].includes(p.playType);
+  const ptype = run ? "Run" : pass ? "Pass" : "";
+  const res = p.outcome==="td" ? (pass ? "Complete, TD" : "Rush, TD") : p.outcome==="int" ? "Interception" : p.outcome==="fumble" ? "Fumble" : p.outcome==="sack" ? "Sack" : p.outcome==="incomplete" ? "Incomplete" : p.outcome==="penalty" ? "Penalty" : run ? "Rush" : pass && p.gain!=null ? "Complete" : "";
+  const yl = p.yd==null || !p.side ? "" : p.yd===50 ? "50" : (p.side==="-" ? "-" : "") + p.yd;
+  const motions = new Set([...(MYTERMS.motions||[]), "motion","jet","orbit","fly","mob","zip","zap","zoom","shift","jet motion","orbit motion"]);
+  const tags = String(p.tags||"").split(/\s*,\s*/).filter(Boolean);
+  const mo = tags.filter(t=>motions.has(t.toLowerCase())), tg = tags.filter(t=>!motions.has(t.toLowerCase()));
+  const sc = success(p);
+  const form = p.formation ? p.formation.replace(/\s+(right|left)$/i,"") : "";
+  const team = ls.get("bl-team","");
+  const odk = isOffense(g) ? "O" : isScout(g) ? "D" : "O";
+  return [p.n??"", odk, p.q??"", p.drive??"", p.down??"", p.dist??"", p.hash||"", yl, ptype, res, p.gain??"", sc==null?"":sc?"Y":"N", p.str||"", form, p.play||"", p.dir||"", p.backfield||"", p.personnel||"", mo.join(", "), tg.join(", "), p.front||"", p.coverage||"", p.blitz ? (p.blitzer||"Y") : "", p.outcome==="penalty" ? "Y" : "", isScout(g)||isOffense(g) ? (g.opp||"") : team, isScout(g)||isOffense(g) ? (g.faced==="us" ? team : (g.faced||"")) : (g.opp||""), p.box||"", [p.defender, p.weakness].filter(Boolean).join(": ")];
+}
+const csvCell = v => { v = String(v ?? ""); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+$("#teamName").value = ls.get("bl-team","");
+$("#teamName").addEventListener("input", e => ls.set("bl-team", e.target.value.trim()));
+$("#hudlExport").onclick = () => {
+  const g = game(); if (!gid || !g){ $("#hudlExpMsg").textContent = "Pick a game first."; return; }
+  const ps = plays().sort((a,b)=>a.t-b.t);
+  const lines = [HUDL_HEAD.map(csvCell).join(",")].concat(ps.map(p=>hudlCols(p,g).map(csvCell).join(",")));
+  const blob = new Blob(["\ufeff" + lines.join("\r\n")], {type:"text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = ("booth-log-" + (g.opp||"game") + "-" + (g.date||"").replace(/\//g,"-")).replace(/[^a-z0-9-]+/gi,"-").replace(/-+/g,"-") + ".csv";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  $("#hudlExpMsg").textContent = "Saved " + ps.length + " plays in Hudl's columns.";
+};
 $("#exportBtn").onclick = () => {
   const blob = new Blob([JSON.stringify({app:"booth-log", v:1, saved:new Date().toISOString(), data:DATA, terms:MYTERMS}, null, 1)], {type:"application/json"});
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "booth-log-backup-" + new Date().toISOString().slice(0,10) + ".json";
@@ -1295,6 +1345,7 @@ $("#importFile").onchange = async e => {
     let n = 0;
     for (const [id,g] of Object.entries(j.data.games)){ if (!DATA.games[id]) n++; DATA.games[id] = g; DATA.plays[id] = {...(DATA.plays[id]||{}), ...(j.data.plays[id]||{})}; }
     if (j.terms){ MYTERMS.forms = {...MYTERMS.forms, ...(j.terms.forms||{})}; MYTERMS.plays = {...MYTERMS.plays, ...(j.terms.plays||{})}; MYTERMS.tags = [...new Set([...(MYTERMS.tags||[]), ...(j.terms.tags||[])])]; MYTERMS.alias = {...(MYTERMS.alias||{}), ...(j.terms.alias||{})}; saveTerms(); }
+    for (const ps of Object.values(DATA.plays)) for (const p of Object.values(ps)) if (p.ai) tidy(p);
     saveData(); render(); $("#backupMsg").textContent = "Loaded. " + n + " new game" + (n===1?"":"s") + " added; games you already had were merged.";
   } catch { $("#backupMsg").textContent = "That file isn't a Booth Log backup. Pick the file that starts with booth-log-backup."; }
   e.target.value = "";
