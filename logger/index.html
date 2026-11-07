@@ -1141,7 +1141,7 @@ function renderTerms(){
     ...Object.entries(MYTERMS.forms).map(([n,f])=>({k:"form",n,d:"Formation · "+(fam[f]||"no family")})),
     ...Object.entries(MYTERMS.plays).map(([n,t])=>({k:"play",n,d:"Play · "+(pt[t]||"no type")})),
     ...(MYTERMS.tags||[]).map(n=>({k:"tag",n,d:"Tag"})),
-    ...Object.entries(MYTERMS.alias||{}).map(([n,t])=>({k:"alias",n,d:"Heard as → "+cap(t)}))
+    ...Object.entries(MYTERMS.alias||{}).map(([n,t])=>({k:"alias",n,d:"→ fixed to "+cap(t)}))
   ];
   const d = drillTerms(), nDrill = Object.keys(d.plays).length;
   $("#termList").innerHTML = (rows.length ? rows.map(r=>`<div class="term"><span><b>${esc(cap(r.n))}</b> <small>${esc(r.d)}</small></span><button class="linkbtn" data-rm="${r.k}" data-n="${esc(r.n)}">Remove</button></div>`).join("") : `<div class="hint">No names of your own yet. Add them here, or type a new name in Fix on any play.</div>`)
